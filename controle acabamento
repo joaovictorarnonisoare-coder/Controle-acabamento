@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Interativo de Andares | Obras</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; }
+        
+        .glass-card {
+            background: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            display: flex;
+            flex-direction: column;
+            height: 420px;
+        }
+
+        .tower-graphic {
+            position: relative;
+            width: 60px;
+            height: 120px;
+            border: 3px solid #cbd5e1;
+            border-radius: 6px 6px 0 0;
+            background: #f1f5f9;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+        
+        .tower-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.6s ease;
+        }
+        
+        .tower-windows {
+            position: absolute;
+            top: 4px; left: 4px; right: 4px; bottom: 4px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+            align-content: start;
+            z-index: 10;
+        }
+        
+        .window {
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.85);
+            border-radius: 1px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .status-btn {
+            width: 100%;
+            height: 26px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+        }
+        .status-btn:active { transform: scale(0.95); }
+        .status-btn:hover { filter: brightness(0.9); }
+
+        .table-header { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; text-align: center; }
+        .table-cell { padding: 4px 2px; text-align: center; }
+        .bloco-title { font-size: 11px; font-weight: bold; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; margin-top: 8px; margin-bottom: 4px; color: #334155; }
+        
+        .custom-scroll {
+            overflow-y: auto;
+            padding-right: 4px;
+            flex-grow: 1;
+        }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            animation: modalPop 0.2s ease-out;
+        }
+        @keyframes modalPop {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 pb-12">
+
+    <!-- Modal de Edição -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-content overflow-hidden">
+            <div class="bg-blue-600 px-5 py-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-pen-to-square mr-2"></i>Editar Serviço</h3>
+                <button onclick="closeModal()" class="text-white/70 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 mb-2">
+                    <p class="text-xs text-slate-500 font-semibold uppercase mb-1">Localização</p>
+                    <p class="text-sm font-bold text-slate-800" id="modal-location">Torre 1 - Bloco 1 - Térreo</p>
+                    <p class="text-blue-600 font-bold mt-1" id="modal-service">Pintura 1ª</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Status</label>
+                    <select id="modal-status" class="w-full border border-slate-300 rounded-md p-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                        <option value="NÃO INICIADO">Não Iniciado</option>
+                        <option value="EXECUTANDO">Executando</option>
+                        <option value="FEITO">Pronto</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Data Início</label>
+                        <input type="date" id="modal-ini" class="w-full border border-slate-300 rounded-md p-2 text-sm focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Data Fim</label>
+                        <input type="date" id="modal-fim" class="w-full border border-slate-300 rounded-md p-2 text-sm focus:border-blue-500 outline-none">
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-5 py-3 border-t border-slate-200 flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-md transition">Cancelar</button>
+                <button onclick="saveModal()" class="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md transition shadow-sm">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu Superior -->
+    <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-14 items-center">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white mr-3 shadow-md">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <span class="font-bold text-lg tracking-tight">Controle<span class="text-blue-600">Andares</span></span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="resetData()" class="text-xs text-slate-500 hover:text-red-500 transition px-3 py-1 border border-slate-200 rounded-md" title="Restaurar dados originais do Excel">
+                        <i class="fa-solid fa-rotate-right mr-1"></i> Zerar
+                    </button>
+                    <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full uppercase flex items-center">
+                        <i class="fa-solid fa-check mr-1"></i> Salvo
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        <!-- Cabeçalho e Legenda -->
+        <div class="mb-6 flex justify-between items-end">
+            <div>
+                <h1 class="text-2xl font-extrabold text-slate-800">Mapeamento de Pavimentos e Datas</h1>
+                <p class="text-slate-500 mt-1 text-sm">Clique nos quadradinhos para editar Status e inserir Datas de Início/Fim:<br><br>
+                <span class="inline-block w-4 h-4 bg-slate-200 border border-slate-300 rounded-sm mr-1 align-middle"></span> <span class="align-middle">Não Iniciado</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <span class="inline-block w-4 h-4 bg-yellow-400 border border-yellow-500 rounded-sm mr-1 align-middle"></span> <span class="align-middle">Executando</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <span class="inline-block w-4 h-4 bg-emerald-500 border border-emerald-600 rounded-sm mr-1 align-middle"></span> <span class="align-middle">Pronto</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- KPIs Globais -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="glass-card !h-auto p-5 border-l-4 border-l-blue-500">
+                <p class="text-slate-500 font-semibold text-xs uppercase mb-1">Avanço Global da Obra</p>
+                <h3 class="text-3xl font-bold text-slate-800" id="kpi-overall">0%</h3>
+            </div>
+            <div class="glass-card !h-auto p-5 border-l-4 border-l-emerald-500">
+                <p class="text-slate-500 font-semibold text-xs uppercase mb-1">Torre Mais Adiantada</p>
+                <h3 class="text-xl font-bold text-slate-800 mt-1" id="kpi-best">-</h3>
+            </div>
+            <div class="glass-card !h-auto p-5 border-l-4 border-l-orange-500">
+                <p class="text-slate-500 font-semibold text-xs uppercase mb-1">Serviço Mais Adiantado</p>
+                <h3 class="text-xl font-bold text-slate-800 mt-1" id="kpi-service">-</h3>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+            <div class="glass-card !h-auto p-5 lg:col-span-2">
+                <h2 class="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wide">Progresso Geral por Torre</h2>
+                <div class="relative h-48"><canvas id="barChart"></canvas></div>
+            </div>
+            <div class="glass-card !h-auto p-5">
+                <h2 class="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wide">Média de Serviços</h2>
+                <div class="relative h-48 flex justify-center"><canvas id="radarChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Área dos Cartões de Controle -->
+        <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Controle Detalhado por Pavimento</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="torres-grid">
+            <!-- Gerado pelo Javascript -->
+        </div>
+
+    </div>
+
+    <script>
+        const defaultData = [{"name": "TORRE 1", "blocos": [{"name": "Bloco 1", "pavimentos": [{"pav": "Térreo", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "", "limp": "FEITO", "limp_ini": "2026-05-01", "limp_fim": "2026-05-28"}, {"pav": "2º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "", "limp": "FEITO", "limp_ini": "2026-05-01", "limp_fim": "2026-05-28"}, {"pav": "3º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "", "limp": "FEITO", "limp_ini": "2026-05-01", "limp_fim": "2026-05-28"}]}, {"name": "Bloco 2", "pavimentos": [{"pav": "Térreo", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "", "limp": "FEITO", "limp_ini": "2026-05-29", "limp_fim": "2026-06-09"}, {"pav": "1º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "", "limp": "FEITO", "limp_ini": "2026-05-29", "limp_fim": "2026-06-09"}, {"pav": "2º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "", "limp": "FEITO", "limp_ini": "2026-05-29", "limp_fim": "2026-06-09"}, {"pav": "3º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "", "limp": "FEITO", "limp_ini": "2026-05-29", "limp_fim": "2026-06-09"}]}]}, {"name": "TORRE 2", "blocos": [{"name": "Bloco 3", "pavimentos": [{"pav": "Térreo", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "EXECUTANDO", "p2_ini": "2026-06-15", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "EXECUTANDO", "p2_ini": "2026-06-15", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "EXECUTANDO", "p2_ini": "2026-06-15", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "EXECUTANDO", "p2_ini": "2026-06-15", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}, {"name": "Bloco 4", "pavimentos": [{"pav": "Térreo", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-05-21", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-05-22", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-05-27", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}]}, {"name": "TORRE 3", "blocos": [{"name": "Bloco 5", "pavimentos": [{"pav": "Térreo", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "2026-05-29", "limp": "EXECUTANDO", "limp_ini": "2026-06-10", "limp_fim": ""}, {"pav": "1º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "2026-05-29", "limp": "EXECUTANDO", "limp_ini": "2026-06-10", "limp_fim": ""}, {"pav": "2º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "2026-05-29", "limp": "EXECUTANDO", "limp_ini": "2026-06-10", "limp_fim": ""}, {"pav": "3º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "2026-05-29", "limp": "FEITO", "limp_ini": "", "limp_fim": ""}]}, {"name": "Bloco 6", "pavimentos": [{"pav": "Térreo", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-06-10", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "2026-06-12", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-06-10", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "2026-06-12", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-06-10", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "2026-06-12", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-06-10", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "FEITO", "p2_ini": "", "p2_fim": "2026-06-12", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}]}, {"name": "TORRE 4", "blocos": [{"name": "Bloco 7", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}, {"name": "Bloco 8", "pavimentos": [{"pav": "Térreo", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "FEITO", "p1_ini": "", "p1_fim": "", "lam": "FEITO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}]}, {"name": "TORRE 5", "blocos": [{"name": "Bloco 10", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}, {"name": "Bloco 9", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-06-15", "lam": "EXECUTANDO", "lam_ini": "2026-06-16", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-06-15", "lam": "EXECUTANDO", "lam_ini": "2026-06-16", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}]}, {"name": "TORRE 6", "blocos": [{"name": "Bloco 11", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}, {"name": "Bloco 12", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}]}, {"name": "TORRE 7", "blocos": [{"name": "Bloco 13", "pavimentos": [{"pav": "Térreo", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "EXECUTANDO", "p1_ini": "", "p1_fim": "2026-06-15", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-06-15", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "FEITO", "p1_ini": "", "p1_fim": "2026-06-15", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}, {"name": "Bloco 14", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}]}, {"name": "TORRE 8", "blocos": [{"name": "Bloco 15", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}, {"name": "Bloco 16", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}]}, {"name": "TORRE 9", "blocos": [{"name": "Bloco 17", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}, {"name": "Bloco 18", "pavimentos": [{"pav": "Térreo", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "1º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "2º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}, {"pav": "3º", "p1": "NÃO INICIADO", "p1_ini": "", "p1_fim": "", "lam": "NÃO INICIADO", "lam_ini": "", "lam_fim": "", "p2": "NÃO INICIADO", "p2_ini": "", "p2_fim": "", "limp": "NÃO INICIADO", "limp_ini": "", "limp_fim": ""}]}]}];
+
+        let obrasData = [];
+        const savedData = localStorage.getItem('controleObraPavimentosV3');
+        
+        if (savedData) {
+            obrasData = JSON.parse(savedData);
+        } else {
+            obrasData = JSON.parse(JSON.stringify(defaultData));
+        }
+
+        let barChart, radarChart;
+
+        let currentEdit = { tIdx: null, bIdx: null, pIdx: null, sKey: null };
+
+        const serviceNames = {
+            'p1': 'Pintura 1ª',
+            'lam': 'Laminado',
+            'p2': 'Pintura 2ª',
+            'limp': 'Limpeza'
+        };
+
+        function getStatusColor(status) {
+            if (status === 'FEITO') return '#10b981'; 
+            if (status === 'EXECUTANDO') return '#facc15'; 
+            return '#e2e8f0'; 
+        }
+        
+        function getStatusIcon(status) {
+            if (status === 'FEITO') return '<i class="fa-solid fa-check"></i>';
+            if (status === 'EXECUTANDO') return '<i class="fa-solid fa-person-digging text-yellow-800"></i>';
+            return '';
+        }
+
+        function getStatusValue(status) {
+            if (status === 'FEITO') return 1;
+            if (status === 'EXECUTANDO') return 0.5;
+            return 0;
+        }
+
+        function getColorHex(val) {
+            if (val >= 90) return '#10b981'; 
+            if (val >= 50) return '#3b82f6'; 
+            if (val >= 20) return '#f59e0b'; 
+            if (val > 0) return '#f97316';   
+            return '#94a3b8';                
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            renderTorres();
+            initCharts();
+            updateGlobalUI();
+        });
+
+        window.openModal = function(tIdx, bIdx, pIdx, serviceKey) {
+            currentEdit = { tIdx, bIdx, pIdx, sKey: serviceKey };
+            
+            const torre = obrasData[tIdx];
+            const bloco = torre.blocos[bIdx];
+            const pav = bloco.pavimentos[pIdx];
+            
+            document.getElementById('modal-location').innerText = `${torre.name} - ${bloco.name} - ${pav.pav}`;
+            document.getElementById('modal-service').innerText = serviceNames[serviceKey];
+            
+            document.getElementById('modal-status').value = pav[serviceKey];
+            document.getElementById('modal-ini').value = pav[serviceKey + '_ini'] || '';
+            document.getElementById('modal-fim').value = pav[serviceKey + '_fim'] || '';
+            
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        window.closeModal = function() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        window.saveModal = function() {
+            const { tIdx, bIdx, pIdx, sKey } = currentEdit;
+            const pav = obrasData[tIdx].blocos[bIdx].pavimentos[pIdx];
+            
+            pav[sKey] = document.getElementById('modal-status').value;
+            pav[sKey + '_ini'] = document.getElementById('modal-ini').value;
+            pav[sKey + '_fim'] = document.getElementById('modal-fim').value;
+            
+            const btn = document.getElementById(`btn-${tIdx}-${bIdx}-${pIdx}-${sKey}`);
+            btn.style.backgroundColor = getStatusColor(pav[sKey]);
+            btn.innerHTML = getStatusIcon(pav[sKey]);
+            
+            if(pav[sKey + '_ini'] || pav[sKey + '_fim']) {
+                 if(pav[sKey] === 'NÃO INICIADO') {
+                     btn.innerHTML = '<i class="fa-regular fa-calendar-dots text-slate-400"></i>';
+                 }
+            }
+            
+            closeModal();
+            recalcTower(tIdx);
+            saveData();
+            updateGlobalUI();
+        }
+
+        function recalcTower(tIdx) {
+            const torre = obrasData[tIdx];
+            let sum = 0;
+            let count = 0;
+            
+            torre.blocos.forEach(b => {
+                b.pavimentos.forEach(p => {
+                    sum += getStatusValue(p.p1);
+                    sum += getStatusValue(p.lam);
+                    sum += getStatusValue(p.p2);
+                    sum += getStatusValue(p.limp);
+                    count += 4;
+                });
+            });
+            
+            const totalPct = count === 0 ? 0 : (sum / count) * 100;
+            torre.totalCalculado = totalPct;
+            
+            const totalEl = document.getElementById(`total-t${tIdx}`);
+            const fillEl = document.getElementById(`fill-t${tIdx}`);
+            const color = getColorHex(totalPct);
+            
+            if(totalEl && fillEl) {
+                totalEl.innerText = totalPct.toFixed(1) + '%';
+                totalEl.style.color = color;
+                fillEl.style.height = totalPct + '%';
+                fillEl.style.backgroundColor = color;
+            }
+        }
+
+        function renderTorres() {
+            const grid = document.getElementById('torres-grid');
+            grid.innerHTML = '';
+            
+            obrasData.forEach((torre, tIdx) => {
+                recalcTower(tIdx);
+                const totalPct = torre.totalCalculado;
+                const color = getColorHex(totalPct);
+                
+                let windowsHtml = '';
+                for(let i=0; i<10; i++) windowsHtml += '<div class="window"></div>';
+                
+                let blocosHtml = '';
+                torre.blocos.forEach((bloco, bIdx) => {
+                    blocosHtml += `<div class="bloco-title">${bloco.name}</div>`;
+                    blocosHtml += `
+                        <table class="w-full mb-1">
+                            <tr>
+                                <td class="table-header w-1/5 text-left pl-1">Pav</td>
+                                <td class="table-header w-1/5">P1ª</td>
+                                <td class="table-header w-1/5">Lam.</td>
+                                <td class="table-header w-1/5">P2ª</td>
+                                <td class="table-header w-1/5">Limp.</td>
+                            </tr>
+                    `;
+                    
+                    bloco.pavimentos.forEach((pav, pIdx) => {
+                        const renderBtn = (sKey, status) => {
+                            let icon = getStatusIcon(status);
+                            if(status === 'NÃO INICIADO' && (pav[sKey+'_ini'] || pav[sKey+'_fim'])) {
+                                icon = '<i class="fa-regular fa-calendar-dots text-slate-400"></i>';
+                            }
+                            return `<button id="btn-${tIdx}-${bIdx}-${pIdx}-${sKey}" class="status-btn shadow-sm" style="background-color: ${getStatusColor(status)}" onclick="openModal(${tIdx}, ${bIdx}, ${pIdx}, '${sKey}')" title="Clique para editar Status e Datas">${icon}</button>`;
+                        };
+
+                        blocosHtml += `
+                            <tr>
+                                <td class="text-xs font-semibold text-slate-600 pl-1 text-left whitespace-nowrap">${pav.pav}</td>
+                                <td class="table-cell">${renderBtn('p1', pav.p1)}</td>
+                                <td class="table-cell">${renderBtn('lam', pav.lam)}</td>
+                                <td class="table-cell">${renderBtn('p2', pav.p2)}</td>
+                                <td class="table-cell">${renderBtn('limp', pav.limp)}</td>
+                            </tr>
+                        `;
+                    });
+                    blocosHtml += `</table>`;
+                });
+                
+                const card = document.createElement('div');
+                card.className = `glass-card p-4`;
+                card.innerHTML = `
+                    <div class="text-center font-bold text-base text-slate-700 mb-3 border-b pb-2 uppercase tracking-wider">${torre.name}</div>
+                    <div class="flex gap-3 h-full pb-4">
+                        <div class="flex flex-col items-center w-1/4 pt-2">
+                            <div class="tower-graphic shadow-sm">
+                                <div id="fill-t${tIdx}" class="tower-fill" style="height: ${totalPct}%; background-color: ${color}"></div>
+                                <div class="tower-windows">${windowsHtml}</div>
+                            </div>
+                            <div id="total-t${tIdx}" class="text-xl font-black mt-2 transition-colors duration-300" style="color: ${color}">
+                                ${totalPct.toFixed(1)}%
+                            </div>
+                        </div>
+                        <div class="w-3/4 custom-scroll">
+                            ${blocosHtml}
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function saveData() { localStorage.setItem('controleObraPavimentosV3', JSON.stringify(obrasData)); }
+
+        window.resetData = function() {
+            if(confirm("Tem certeza que deseja zerar? Os dados voltarão para os valores iniciais da sua planilha Excel.")) {
+                obrasData = JSON.parse(JSON.stringify(defaultData));
+                saveData();
+                renderTorres();
+                updateGlobalUI();
+            }
+        }
+
+        function updateGlobalUI() {
+            let sumTotal = 0, sumP1 = 0, sumLam = 0, sumP2 = 0, sumLimp = 0, countTotal = 0;
+            let bestTorre = obrasData[0];
+
+            obrasData.forEach(torre => {
+                if (torre.totalCalculado > bestTorre.totalCalculado) bestTorre = torre;
+                torre.blocos.forEach(b => {
+                    b.pavimentos.forEach(p => {
+                        sumP1 += getStatusValue(p.p1);
+                        sumLam += getStatusValue(p.lam);
+                        sumP2 += getStatusValue(p.p2);
+                        sumLimp += getStatusValue(p.limp);
+                        countTotal++;
+                    });
+                });
+                sumTotal += torre.totalCalculado;
+            });
+
+            const avgTotal = obrasData.length > 0 ? sumTotal / obrasData.length : 0;
+            const p1Pct = countTotal > 0 ? (sumP1 / countTotal) * 100 : 0;
+            const lamPct = countTotal > 0 ? (sumLam / countTotal) * 100 : 0;
+            const p2Pct = countTotal > 0 ? (sumP2 / countTotal) * 100 : 0;
+            const limpPct = countTotal > 0 ? (sumLimp / countTotal) * 100 : 0;
+
+            const services = [
+                {name: 'Pintura 1ª', val: p1Pct}, {name: 'Laminado', val: lamPct},
+                {name: 'Pintura 2ª', val: p2Pct}, {name: 'Limpeza', val: limpPct}
+            ];
+            const bestService = services.reduce((prev, current) => (prev.val > current.val) ? prev : current);
+
+            document.getElementById('kpi-overall').innerText = avgTotal.toFixed(1) + '%';
+            document.getElementById('kpi-best').innerHTML = `${bestTorre.name} <span class="text-sm text-slate-400 font-normal ml-1">(${bestTorre.totalCalculado.toFixed(0)}%)</span>`;
+            document.getElementById('kpi-service').innerHTML = `${bestService.name} <span class="text-sm text-slate-400 font-normal ml-1">(${bestService.val.toFixed(0)}%)</span>`;
+
+            if(barChart && radarChart) {
+                barChart.data.datasets[0].data = obrasData.map(d => d.totalCalculado);
+                barChart.data.datasets[0].backgroundColor = obrasData.map(d => getColorHex(d.totalCalculado));
+                barChart.update();
+
+                radarChart.data.datasets[0].data = [p1Pct, lamPct, p2Pct, limpPct];
+                radarChart.update();
+            }
+        }
+
+        function initCharts() {
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            barChart = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: obrasData.map(d => d.name),
+                    datasets: [{
+                        data: obrasData.map(d => d.totalCalculado || 0),
+                        backgroundColor: obrasData.map(d => getColorHex(d.totalCalculado || 0)),
+                        borderRadius: 4,
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { max: 100, grid: { color: '#f1f5f9' }, ticks:{font:{size:10}} }, x: { grid: { display: false }, ticks:{font:{size:10}} } } }
+            });
+
+            const ctxRadar = document.getElementById('radarChart').getContext('2d');
+            radarChart = new Chart(ctxRadar, {
+                type: 'polarArea',
+                data: {
+                    labels: ['P1ª', 'Lam', 'P2ª', 'Limp'],
+                    datasets: [{
+                        data: [0,0,0,0],
+                        backgroundColor: ['rgba(59,130,246,0.7)', 'rgba(16,185,129,0.7)', 'rgba(245,158,11,0.7)', 'rgba(139,92,246,0.7)'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { r: { ticks: { display: false } } }, plugins: { legend: { position: 'right', labels:{font:{size:10}} } } }
+            });
+        }
+    </script>
+</body>
+</html>
