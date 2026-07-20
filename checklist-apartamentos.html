@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+<title>Checklist de Acabamento — Planta Interativa</title>
+<style>
+  :root{
+    --paper:#f1f4f7; --surface:#ffffff; --surface2:#e9eef2;
+    --ink:#1b2733; --ink2:#52657a; --ink3:#8595a6;
+    --line:#d3dce4; --plan:#35618e; --plan-soft:#b7cbdd; --plan-fill:#f8fafc;
+    --accent:#e8760a; --accent-soft:rgba(232,118,10,.12); --accent-ink:#ffffff;
+    --good:#1f8a4c; --good-strong:#2ea862; --good-soft:rgba(46,168,98,.20);
+    --warn:#c07a00; --warn-line:rgba(192,122,0,.45);
+    --bad:#c23b2e;
+    --shadow:0 10px 28px rgba(27,39,51,.10);
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#0e151c; --surface:#161f29; --surface2:#1c2833;
+      --ink:#e6edf3; --ink2:#9fb0c0; --ink3:#67788a;
+      --line:#26333f; --plan:#6ea8d8; --plan-soft:#31506e; --plan-fill:#121b24;
+      --accent:#f08a2a; --accent-soft:rgba(240,138,42,.14); --accent-ink:#14100a;
+      --good:#46c07a; --good-strong:#46c07a; --good-soft:rgba(70,192,122,.20);
+      --warn:#e8a83c; --warn-line:rgba(232,168,60,.40);
+      --bad:#e06055;
+      --shadow:0 10px 28px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#f1f4f7; --surface:#ffffff; --surface2:#e9eef2;
+    --ink:#1b2733; --ink2:#52657a; --ink3:#8595a6;
+    --line:#d3dce4; --plan:#35618e; --plan-soft:#b7cbdd; --plan-fill:#f8fafc;
+    --accent:#e8760a; --accent-soft:rgba(232,118,10,.12); --accent-ink:#ffffff;
+    --good:#1f8a4c; --good-strong:#2ea862; --good-soft:rgba(46,168,98,.20);
+    --warn:#c07a00; --warn-line:rgba(192,122,0,.45);
+    --bad:#c23b2e;
+    --shadow:0 10px 28px rgba(27,39,51,.10);
+  }
+  :root[data-theme="dark"]{
+    --paper:#0e151c; --surface:#161f29; --surface2:#1c2833;
+    --ink:#e6edf3; --ink2:#9fb0c0; --ink3:#67788a;
+    --line:#26333f; --plan:#6ea8d8; --plan-soft:#31506e; --plan-fill:#121b24;
+    --accent:#f08a2a; --accent-soft:rgba(240,138,42,.14); --accent-ink:#14100a;
+    --good:#46c07a; --good-strong:#46c07a; --good-soft:rgba(70,192,122,.20);
+    --warn:#e8a83c; --warn-line:rgba(232,168,60,.40);
+    --bad:#e06055;
+    --shadow:0 10px 28px rgba(0,0,0,.45);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+  button{font-family:inherit;font-size:inherit;cursor:pointer}
+  input,select{font-family:inherit;font-size:inherit;color:var(--ink)}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .app{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+
+  /* ============ title block (carimbo de prancha) ============ */
+  .titleblock{
+    display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr;
+    border:2px solid var(--ink);background:var(--surface);
+    border-radius:2px;overflow:hidden;
+  }
+  .tb-cell{padding:10px 14px;border-left:1px solid var(--line)}
+  .tb-cell:first-child{border-left:none}
+  .tb-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+  .tb-value{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px;margin-top:2px;color:var(--ink)}
+  .tb-title{font-size:19px;font-weight:700;letter-spacing:.02em;margin-top:1px;text-wrap:balance}
+  .tb-sub{font-size:12px;color:var(--ink2)}
+  .tb-pct{color:var(--good);font-weight:700;font-size:18px}
+
+  /* ============ toolbar ============ */
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:16px 0}
+  .apt-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink2);font-weight:600;font-size:13px;
+    transition:border-color .15s,background .15s,color .15s;
+  }
+  .chip:hover{border-color:var(--accent)}
+  .chip.active{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+  .chip .chip-pct{font-family:var(--mono);font-size:11px;opacity:.75}
+  .chip-tools{display:inline-flex;gap:2px}
+  .chip-tools button{border:none;background:none;color:inherit;opacity:.65;padding:0 3px;font-size:12px}
+  .chip-tools button:hover{opacity:1}
+  .chip-edit{width:110px;border:none;background:transparent;color:inherit;font-weight:600;font-size:13px}
+  .chip-edit:focus{outline:none}
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:8px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;font-size:13px;
+    transition:border-color .15s,transform .1s;
+  }
+  .btn:hover{border-color:var(--ink2)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .btn.ghost-add{border-style:dashed;color:var(--ink2)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .popover{
+    position:absolute;margin-top:6px;z-index:30;display:flex;gap:6px;padding:10px;
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
+  }
+  .popover input{padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--paper);width:130px}
+  .hidden{display:none !important}
+  .apt-add{position:relative}
+
+  /* ============ layout ============ */
+  .layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);gap:16px;align-items:start}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .card-head h2{margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:700}
+  .card-body{padding:14px 16px}
+
+  /* legend */
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--ink2)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .sw{width:12px;height:12px;border-radius:3px;border:1px solid var(--plan-soft);display:inline-block}
+  .sw.done{background:var(--good-soft);border-color:var(--good)}
+  .sw.part{background:linear-gradient(to top,var(--good-soft) 50%,transparent 50%);border-color:var(--warn-line)}
+  .sw.pend{background:repeating-linear-gradient(45deg,transparent 0 3px,var(--warn-line) 3px 4px)}
+
+  /* ============ floor plan ============ */
+  #plan{padding:10px 14px 16px}
+  #plan svg{width:100%;height:auto;display:block}
+  .room{cursor:pointer}
+  .room .room-base{fill:var(--plan-fill);stroke:var(--plan);stroke-width:2.5;transition:fill .15s}
+  .room:hover .room-base,.room:focus-visible .room-base{fill:var(--accent-soft);stroke:var(--accent);stroke-width:3.5}
+  .room .paint{fill:var(--good-soft);pointer-events:none;transition:height .5s ease,y .5s ease}
+  .room .hatch-rest{fill:url(#hatchPat);pointer-events:none}
+  .room text{pointer-events:none;fill:var(--ink);font-family:var(--sans)}
+  .room .r-name{font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .room .r-stat{font-family:var(--mono);font-size:13px;fill:var(--ink2)}
+  .room .r-stat .pct-done{fill:var(--good);font-weight:700}
+  .room.small .r-name{font-size:11px}
+  .room.small .r-stat{font-size:10px}
+  .fixture{stroke:var(--plan-soft);fill:none;stroke-width:1.6;pointer-events:none}
+  .outer-wall{fill:none;stroke:var(--ink);stroke-width:7}
+  .badge-done circle{fill:var(--good-strong)}
+  .badge-done path{stroke:#fff;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  @media (prefers-reduced-motion: reduce){ .room .paint{transition:none} }
+
+  /* ============ sidebar ============ */
+  .side{display:flex;flex-direction:column;gap:16px}
+  .hero-num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:46px;font-weight:700;line-height:1;color:var(--ink)}
+  .hero-num small{font-size:22px;color:var(--ink3);font-weight:600}
+  .hero-caption{color:var(--ink2);font-size:12.5px;margin-top:4px}
+  .meter{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;margin-top:12px}
+  .meter i{display:block;height:100%;border-radius:4px;background:var(--good-strong);transition:width .5s ease}
+  @media (prefers-reduced-motion: reduce){ .meter i{transition:none} }
+
+  .room-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-top:1px solid var(--line);background:none;border-left:none;border-right:none;border-bottom:none;width:100%;text-align:left;color:var(--ink)}
+  .room-row:first-of-type{border-top:none}
+  .room-row:hover .rr-name{color:var(--accent)}
+  .rr-name{flex:0 0 96px;font-size:13px;font-weight:600;transition:color .15s}
+  .rr-bar{flex:1;height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}
+  .rr-bar i{display:block;height:100%;background:var(--good-strong)}
+  .rr-count{flex:0 0 44px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--ink2)}
+
+  .pend-item{display:flex;gap:10px;padding:9px 4px;border-top:1px solid var(--line);background:none;border-left:none;border-right:none;border-bottom:none;width:100%;text-align:left;color:var(--ink);align-items:baseline}
+  .pend-item:first-of-type{border-top:none}
+  .pend-item:hover .pi-text{color:var(--accent)}
+  .pi-date{font-family:var(--mono);font-size:11px;color:var(--warn);flex:0 0 74px;font-weight:600}
+  .pi-date.overdue{color:var(--bad)}
+  .pi-text{font-size:13px;transition:color .15s}
+  .pi-room{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);display:block}
+  .empty-note{color:var(--ink3);font-size:13px;padding:6px 4px}
+
+  /* ============ modal ============ */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(15,22,28,.55);z-index:50;
+    display:flex;align-items:flex-start;justify-content:center;padding:4vh 14px;overflow-y:auto;
+  }
+  .modal{
+    width:min(680px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
+  .modal-head h3{margin:0;font-size:17px;letter-spacing:.05em;text-transform:uppercase}
+  .modal-head .mh-pct{font-family:var(--mono);color:var(--good);font-weight:700;margin-left:10px;font-size:15px}
+  .modal-close{border:none;background:none;color:var(--ink2);font-size:22px;line-height:1;padding:4px 8px;border-radius:6px}
+  .modal-close:hover{color:var(--ink);background:var(--surface2)}
+  .modal-meter{height:6px;background:var(--surface2)}
+  .modal-meter i{display:block;height:100%;background:var(--good-strong)}
+  .modal-body{padding:16px 20px 20px}
+
+  .add-form{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;margin-bottom:6px}
+  .add-form input{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+  .add-form input[type="date"]{font-family:var(--mono);font-size:13px}
+  .add-form .inp-resp{width:90px}
+  .preset-row{margin:4px 0 14px}
+  .preset-btn{border:1px dashed var(--line);background:none;color:var(--ink2);border-radius:8px;padding:6px 12px;font-size:12.5px}
+  .preset-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+  .date-group{margin-top:14px}
+  .date-head{display:flex;align-items:baseline;gap:8px;padding-bottom:6px;border-bottom:2px solid var(--ink);margin-bottom:2px}
+  .dh-date{font-family:var(--mono);font-weight:700;font-size:13.5px}
+  .dh-week{font-size:12px;color:var(--ink2)}
+  .dh-count{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink2)}
+  .dh-count.all-done{color:var(--good);font-weight:700}
+
+  .item{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid var(--line)}
+  .item:first-of-type{border-top:none}
+  .item input[type="checkbox"]{width:17px;height:17px;accent-color:var(--good-strong);flex:none;cursor:pointer}
+  .item-text{flex:1;font-size:14px}
+  .item.done .item-text{color:var(--ink3);text-decoration:line-through}
+  .item-resp{font-size:11px;color:var(--ink2);background:var(--surface2);border-radius:999px;padding:2px 8px;white-space:nowrap}
+  .item-when{font-family:var(--mono);font-size:10.5px;color:var(--ink3);white-space:nowrap}
+  .item-del{border:none;background:none;color:var(--ink3);font-size:15px;padding:2px 6px;border-radius:5px}
+  .item-del:hover{color:var(--bad);background:var(--surface2)}
+
+  /* ============ toast ============ */
+  #toast{position:fixed;right:18px;bottom:18px;z-index:80;display:flex;flex-direction:column;gap:8px}
+  .toast{
+    background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-size:13.5px;
+    box-shadow:var(--shadow);animation:toast-in .25s ease;
+  }
+  .toast.good{background:var(--good)}
+  @keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){ .toast{animation:none} }
+
+  /* ============ report (print) ============ */
+  #report{display:none}
+  @media print{
+    body{background:#fff;color:#000}
+    .app,.modal-backdrop,#toast{display:none !important}
+    #report{display:block;font-family:var(--sans);color:#000;padding:0;font-size:12px}
+    #report .rep-titleblock{display:grid;grid-template-columns:2fr 1fr 1fr;border:2px solid #000;margin-bottom:14px}
+    #report .rep-cell{padding:6px 10px;border-left:1px solid #000}
+    #report .rep-cell:first-child{border-left:none}
+    #report .rep-label{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#555}
+    #report .rep-value{font-family:var(--mono);font-size:12px}
+    #report h1{font-size:16px;margin:0}
+    #report h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;border-bottom:2px solid #000;padding-bottom:3px;margin:18px 0 6px}
+    #report table{width:100%;border-collapse:collapse;margin-top:6px}
+    #report th,#report td{border:1px solid #444;padding:4px 8px;text-align:left;font-size:11px}
+    #report th{background:#eee;text-transform:uppercase;font-size:9px;letter-spacing:.08em}
+    #report td.num{font-family:var(--mono);text-align:right}
+    #report .rep-date{font-family:var(--mono);font-weight:700;margin:10px 0 2px;font-size:11.5px}
+    #report ul{list-style:none;margin:2px 0 8px;padding:0}
+    #report li{padding:2.5px 0;border-bottom:1px dotted #bbb;display:flex;gap:8px;align-items:baseline}
+    #report .cb{font-family:var(--mono);font-size:13px}
+    #report .li-meta{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:#555;white-space:nowrap}
+    #report .sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px;page-break-inside:avoid}
+    #report .sig{border-top:1px solid #000;padding-top:5px;text-align:center;font-size:10.5px;color:#333}
+    #report .room-block{page-break-inside:avoid}
+  }
+
+  /* ============ responsive ============ */
+  @media (max-width: 900px){
+    .layout{grid-template-columns:1fr}
+    .titleblock{grid-template-columns:1fr 1fr}
+    .tb-cell{border-top:1px solid var(--line)}
+    .tb-cell:nth-child(-n+2){border-top:none}
+    .tb-cell:nth-child(odd){border-left:none}
+    .add-form{grid-template-columns:1fr 1fr}
+    .add-form .inp-text{grid-column:1 / -1}
+  }
+</style>
+
+<div class="app">
+  <header class="titleblock" id="titleblock"></header>
+
+  <nav class="toolbar">
+    <div class="apt-row" id="aptRow"></div>
+    <div class="actions">
+      <button class="btn" id="btnExport" title="Baixar backup dos dados em JSON">⬇ Backup</button>
+      <button class="btn" id="btnImport" title="Restaurar backup JSON">⬆ Restaurar</button>
+      <input type="file" id="fileImport" accept=".json,application/json" class="hidden">
+      <button class="btn primary" id="btnPrint">🖨 Imprimir relatório</button>
+    </div>
+  </nav>
+
+  <main class="layout">
+    <section class="card">
+      <div class="card-head">
+        <h2>Planta baixa — clique no cômodo</h2>
+        <div class="legend">
+          <span><i class="sw done"></i>Concluído</span>
+          <span><i class="sw part"></i>Em andamento</span>
+          <span><i class="sw pend"></i>Pendências</span>
+          <span><i class="sw"></i>Sem itens</span>
+        </div>
+      </div>
+      <div id="plan"></div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <div class="card-head"><h2>Progresso do apartamento</h2></div>
+        <div class="card-body" id="statTile"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Por cômodo</h2></div>
+        <div class="card-body" id="roomList"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Próximas pendências</h2></div>
+        <div class="card-body" id="pendList"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="modal-backdrop hidden" id="modalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" id="modalBox"></div>
+</div>
+
+<div id="toast" aria-live="polite"></div>
+<section id="report"></section>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------------- rooms & geometry (viewBox 40 10 680 625) ---------------- */
+const ROOMS = {
+  sala:    { name:'Sala de Estar', x:58,  y:28,  w:418, h:268 },
+  cozinha: { name:'Cozinha',       x:484, y:28,  w:218, h:268 },
+  hall:    { name:'Hall',          x:318, y:304, w:140, h:92,  small:true },
+  dorm2:   { name:'Dorm. 02',      x:58,  y:304, w:252, h:313 },
+  banho:   { name:'Banho',         x:318, y:404, w:140, h:213, small:true },
+  dorm1:   { name:'Dorm. 01',      x:466, y:304, w:236, h:313 },
+};
+const ROOM_ORDER = ['sala','cozinha','hall','dorm2','banho','dorm1'];
+
+/* ---------------- checklists padrão por cômodo ---------------- */
+const PRESET_COMUM = [
+  'Pintura de paredes e teto',
+  'Tomadas e interruptores funcionando',
+  'Piso: nivelamento, trincas e rejunte',
+  'Rodapés fixados e sem falhas',
+  'Porta, fechadura e dobradiças',
+  'Janela / esquadria: vedação e vidros',
+  'Forro / gesso sem trincas ou manchas',
+  'Limpeza final do ambiente',
+];
+const PRESETS = {
+  sala: PRESET_COMUM,
+  dorm1: PRESET_COMUM,
+  dorm2: PRESET_COMUM,
+  hall: [
+    'Pintura de paredes e teto',
+    'Piso e rodapés',
+    'Interruptores e ponto de luz',
+    'Porta de entrada: fechadura e vedação',
+    'Limpeza final do ambiente',
+  ],
+  banho: [
+    'Azulejos: alinhamento e rejunte',
+    'Bacia sanitária: fixação e descarga',
+    'Lavatório / cuba e coluna',
+    'Metais, registros e torneiras',
+    'Ralo: caimento e vedação',
+    'Teste de vazamento / impermeabilização',
+    'Box ou previsão de box',
+    'Tomadas e interruptores',
+    'Porta, fechadura e ventilação',
+    'Limpeza final do ambiente',
+  ],
+  cozinha: [
+    'Azulejos: alinhamento e rejunte',
+    'Bancada e cuba: fixação e vedação',
+    'Torneira e sifão sem vazamentos',
+    'Ponto de gás e ventilação',
+    'Tomadas de uso específico (110/220V)',
+    'Pintura de paredes e teto',
+    'Piso e rodapés',
+    'Janela / esquadria: vedação e vidros',
+    'Limpeza final do ambiente',
+  ],
+};
+
+/* ---------------- state ---------------- */
+const STORE_KEY = 'checklistAcabamentoV1';
+let memoryFallback = null;
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){ if(memoryFallback) return memoryFallback; }
+  return null;
+}
+function persist(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch(e){ memoryFallback = state; }
+}
+
+function newApt(name){
+  const rooms = {};
+  ROOM_ORDER.forEach(r => rooms[r] = []);
+  return { id:'apt'+Date.now()+Math.floor(Math.random()*1e4), name, rooms };
+}
+let state = loadState() || { version:1, apartments:[ newApt('Apto 101') ], currentId:null };
+if(!state.apartments.length) state.apartments.push(newApt('Apto 101'));
+if(!state.currentId || !state.apartments.some(a=>a.id===state.currentId)){
+  state.currentId = state.apartments[0].id;
+}
+
+let openRoom = null;          // room id of open modal
+let deleteArmedApt = null;    // two-step apartment delete
+let renamingApt = null;
+
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function apt(){ return state.apartments.find(a=>a.id===state.currentId); }
+function acts(roomId){ const a = apt(); return (a && a.rooms[roomId]) || []; }
+
+function roomStats(roomId){
+  const list = acts(roomId);
+  const total = list.length, done = list.filter(x=>x.done).length;
+  return { total, done, pct: total ? Math.round(done/total*100) : 0 };
+}
+function aptStats(a){
+  a = a || apt();
+  let total=0, done=0;
+  ROOM_ORDER.forEach(r => (a.rooms[r]||[]).forEach(x => { total++; if(x.done) done++; }));
+  return { total, done, pct: total ? Math.round(done/total*100) : 0 };
+}
+
+/* ---------------- dates ---------------- */
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtBR(iso){
+  if(!iso) return '—';
+  const [y,m,d] = iso.split('-');
+  return d+'/'+m+'/'+y;
+}
+function weekdayBR(iso){
+  try{ return new Date(iso+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long'}); }
+  catch(e){ return ''; }
+}
+function fmtLongBR(iso){
+  try{ return new Date(iso+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}); }
+  catch(e){ return iso; }
+}
+
+/* ---------------- toast ---------------- */
+function toast(msg, kind){
+  const box = $('#toast');
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind ? ' '+kind : '');
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; }, 2600);
+  setTimeout(()=>el.remove(), 3000);
+}
+
+/* ---------------- title block ---------------- */
+function renderTitleblock(){
+  const s = aptStats();
+  const a = apt();
+  const dates = new Set();
+  ROOM_ORDER.forEach(r => acts(r).forEach(x => dates.add(x.date)));
+  $('#titleblock').innerHTML =
+    '<div class="tb-cell">'+
+      '<div class="tb-label">Obra · Controle de Acabamento</div>'+
+      '<div class="tb-title">'+esc(a.name)+'</div>'+
+      '<div class="tb-sub">Checklist de vistorias por cômodo — pavimento tipo</div>'+
+    '</div>'+
+    '<div class="tb-cell"><div class="tb-label">Data</div><div class="tb-value">'+fmtBR(todayISO())+'</div></div>'+
+    '<div class="tb-cell"><div class="tb-label">Vistorias</div><div class="tb-value">'+dates.size+' data'+(dates.size===1?'':'s')+'</div></div>'+
+    '<div class="tb-cell"><div class="tb-label">Progresso</div><div class="tb-value tb-pct">'+s.pct+'%</div></div>';
+}
+
+/* ---------------- apartment chips ---------------- */
+function renderChips(){
+  const row = $('#aptRow');
+  let html = '';
+  state.apartments.forEach(a => {
+    const s = aptStats(a);
+    const active = a.id === state.currentId;
+    if(active && renamingApt === a.id){
+      html += '<span class="chip active"><input class="chip-edit" id="chipEdit" value="'+esc(a.name)+'" maxlength="30"></span>';
+    } else {
+      html += '<button class="chip'+(active?' active':'')+'" data-apt="'+a.id+'">'+
+        esc(a.name)+' <span class="chip-pct">'+s.pct+'%</span>';
+      if(active){
+        html += '<span class="chip-tools">'+
+          '<button data-rename="'+a.id+'" title="Renomear">✎</button>'+
+          (state.apartments.length>1
+            ? '<button data-del="'+a.id+'" title="Excluir apartamento">'+(deleteArmedApt===a.id?'confirmar?':'🗑')+'</button>'
+            : '')+
+          '</span>';
+      }
+      html += '</button>';
+    }
+  });
+  html += '<span class="apt-add">'+
+    '<button class="btn ghost-add" id="btnAddApt">+ Apartamento</button>'+
+    '<span class="popover hidden" id="aptPopover">'+
+      '<input id="aptName" placeholder="Ex.: Apto 302" maxlength="30">'+
+      '<button class="btn primary" id="aptCreate">Criar</button>'+
+    '</span></span>';
+  row.innerHTML = html;
+
+  row.querySelectorAll('[data-apt]').forEach(btn => btn.addEventListener('click', e => {
+    const rn = e.target.closest('[data-rename]');
+    const dl = e.target.closest('[data-del]');
+    if(rn){ e.stopPropagation(); renamingApt = rn.dataset.rename; renderChips(); const inp=$('#chipEdit'); inp.focus(); inp.select(); return; }
+    if(dl){
+      e.stopPropagation();
+      const id = dl.dataset.del;
+      if(deleteArmedApt === id){
+        state.apartments = state.apartments.filter(a=>a.id!==id);
+        state.currentId = state.apartments[0].id;
+        deleteArmedApt = null;
+        persist(); renderAll();
+        toast('Apartamento excluído');
+      } else {
+        deleteArmedApt = id; renderChips();
+        setTimeout(()=>{ if(deleteArmedApt===id){ deleteArmedApt=null; renderChips(); } }, 3500);
+      }
+      return;
+    }
+    const id = btn.dataset.apt;
+    if(id !== state.currentId){ state.currentId = id; deleteArmedApt=null; persist(); renderAll(); }
+  }));
+
+  const chipEdit = $('#chipEdit');
+  if(chipEdit){
+    const saveName = () => {
+      const a = apt();
+      const v = chipEdit.value.trim();
+      if(v) a.name = v;
+      renamingApt = null; persist(); renderAll();
+    };
+    chipEdit.addEventListener('keydown', e => { if(e.key==='Enter') saveName(); if(e.key==='Escape'){ renamingApt=null; renderChips(); } });
+    chipEdit.addEventListener('blur', saveName);
+  }
+
+  $('#btnAddApt').addEventListener('click', () => {
+    $('#aptPopover').classList.toggle('hidden');
+    $('#aptName').focus();
+  });
+  const create = () => {
+    const v = $('#aptName').value.trim();
+    if(!v) return;
+    const a = newApt(v);
+    state.apartments.push(a);
+    state.currentId = a.id;
+    persist(); renderAll();
+    toast('Apartamento "'+v+'" criado');
+  };
+  $('#aptCreate').addEventListener('click', create);
+  $('#aptName').addEventListener('keydown', e => { if(e.key==='Enter') create(); });
+}
+
+/* ---------------- floor plan ---------------- */
+function planSVG(){
+  let defs =
+    '<defs><pattern id="hatchPat" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
+    '<line x1="0" y1="0" x2="0" y2="8" stroke="var(--warn-line)" stroke-width="1.4"/></pattern></defs>';
+
+  let roomsHtml = '';
+  ROOM_ORDER.forEach(id => {
+    const r = ROOMS[id];
+    const s = roomStats(id);
+    const cx = r.x + r.w/2, cy = r.y + r.h/2;
+    const paintH = r.h * (s.pct/100);
+    const paintY = r.y + r.h - paintH;
+
+    let inner = '<rect class="room-base" x="'+r.x+'" y="'+r.y+'" width="'+r.w+'" height="'+r.h+'"/>';
+    if(s.total > 0){
+      if(s.pct < 100){
+        inner += '<rect class="hatch-rest" x="'+(r.x+2)+'" y="'+(r.y+2)+'" width="'+(r.w-4)+'" height="'+(r.h-4-paintH)+'"/>';
+      }
+      if(s.pct > 0){
+        inner += '<rect class="paint" x="'+(r.x+2)+'" y="'+(paintY-2+4)+'" width="'+(r.w-4)+'" height="'+Math.max(0,paintH-2)+'"/>';
+      }
+    }
+    const statTxt = s.total
+      ? '<tspan'+(s.pct===100?' class="pct-done"':'')+'>'+s.pct+'%</tspan>  ·  '+s.done+'/'+s.total
+      : 'sem itens';
+    inner += '<text class="r-name" x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle">'+esc(r.name)+'</text>';
+    inner += '<text class="r-stat" x="'+cx+'" y="'+(cy+18)+'" text-anchor="middle">'+statTxt+'</text>';
+    if(s.total && s.pct===100){
+      inner += '<g class="badge-done"><circle cx="'+(r.x+r.w-20)+'" cy="'+(r.y+20)+'" r="11"/>'+
+        '<path d="M '+(r.x+r.w-25)+' '+(r.y+20)+' l 3.5 4 l 6.5 -8"/></g>';
+    }
+    const stats4a11y = s.total ? (s.pct+'% concluído, '+s.done+' de '+s.total+' itens') : 'sem itens';
+    roomsHtml += '<g class="room'+(r.small?' small':'')+'" data-room="'+id+'" role="button" tabindex="0" aria-label="'+esc(r.name)+': '+stats4a11y+'">'+inner+'</g>';
+  });
+
+  // fixtures: bathroom + kitchen sink (decorative)
+  const fixtures =
+    '<g class="fixture">'+
+      '<ellipse cx="422" cy="530" rx="14" ry="19"/>'+
+      '<circle cx="422" cy="460" r="16"/>'+
+      '<line x1="406" y1="460" x2="438" y2="460"/>'+
+      '<rect x="652" y="36" width="42" height="58" rx="3"/>'+
+      '<circle cx="673" cy="54" r="8"/><circle cx="673" cy="78" r="8"/>'+
+    '</g>';
+
+  return '<svg viewBox="40 10 680 625" role="group" aria-label="Planta baixa do apartamento">'+
+    defs + roomsHtml + fixtures +
+    '<rect class="outer-wall" x="52" y="22" width="656" height="601"/></svg>';
+}
+
+function renderPlan(){
+  $('#plan').innerHTML = planSVG();
+  $('#plan').querySelectorAll('.room').forEach(g => {
+    g.addEventListener('click', () => openModal(g.dataset.room));
+    g.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openModal(g.dataset.room); } });
+  });
+}
+
+/* ---------------- sidebar ---------------- */
+function renderSide(){
+  const s = aptStats();
+  const pend = s.total - s.done;
+  $('#statTile').innerHTML =
+    '<div class="hero-num">'+s.pct+'<small>%</small></div>'+
+    '<div class="hero-caption">'+s.done+' de '+s.total+' itens concluídos · <strong>'+pend+'</strong> pendência'+(pend===1?'':'s')+'</div>'+
+    '<div class="meter"><i style="width:'+s.pct+'%"></i></div>';
+
+  let rl = '';
+  ROOM_ORDER.forEach(id => {
+    const st = roomStats(id);
+    rl += '<button class="room-row" data-room="'+id+'">'+
+      '<span class="rr-name">'+esc(ROOMS[id].name)+'</span>'+
+      '<span class="rr-bar"><i style="width:'+st.pct+'%"></i></span>'+
+      '<span class="rr-count">'+(st.total? st.done+'/'+st.total : '—')+'</span></button>';
+  });
+  $('#roomList').innerHTML = rl;
+  $('#roomList').querySelectorAll('[data-room]').forEach(b => b.addEventListener('click', ()=>openModal(b.dataset.room)));
+
+  const pending = [];
+  ROOM_ORDER.forEach(rid => acts(rid).forEach(x => { if(!x.done) pending.push({room:rid, act:x}); }));
+  pending.sort((a,b) => a.act.date < b.act.date ? -1 : a.act.date > b.act.date ? 1 : 0);
+  const today = todayISO();
+  let pl = '';
+  pending.slice(0,7).forEach(p => {
+    pl += '<button class="pend-item" data-room="'+p.room+'">'+
+      '<span class="pi-date'+(p.act.date < today ? ' overdue' : '')+'">'+fmtBR(p.act.date)+'</span>'+
+      '<span><span class="pi-room">'+esc(ROOMS[p.room].name)+'</span>'+
+      '<span class="pi-text">'+esc(p.act.text)+'</span></span></button>';
+  });
+  if(pending.length > 7) pl += '<div class="empty-note">+ '+(pending.length-7)+' outras pendências…</div>';
+  $('#pendList').innerHTML = pl || '<div class="empty-note">'+(s.total? 'Tudo concluído neste apartamento 🎉' : 'Clique em um cômodo da planta para criar a primeira vistoria.')+'</div>';
+  $('#pendList').querySelectorAll('[data-room]').forEach(b => b.addEventListener('click', ()=>openModal(b.dataset.room)));
+}
+
+/* ---------------- modal ---------------- */
+function openModal(roomId){
+  openRoom = roomId;
+  $('#modalBackdrop').classList.remove('hidden');
+  renderModal();
+  const t = $('#inpText'); if(t) t.focus();
+}
+function closeModal(){
+  openRoom = null;
+  $('#modalBackdrop').classList.add('hidden');
+}
+
+function renderModal(){
+  if(!openRoom) return;
+  const r = ROOMS[openRoom];
+  const s = roomStats(openRoom);
+  const list = acts(openRoom);
+
+  const groups = {};
+  list.forEach(x => { (groups[x.date] = groups[x.date] || []).push(x); });
+  const dates = Object.keys(groups).sort().reverse();
+
+  let gHtml = '';
+  dates.forEach(d => {
+    const g = groups[d];
+    const gd = g.filter(x=>x.done).length;
+    gHtml += '<div class="date-group">'+
+      '<div class="date-head"><span class="dh-date">'+fmtBR(d)+'</span>'+
+      '<span class="dh-week">'+weekdayBR(d)+'</span>'+
+      '<span class="dh-count'+(gd===g.length?' all-done':'')+'">'+gd+'/'+g.length+'</span></div>';
+    g.forEach(x => {
+      gHtml += '<div class="item'+(x.done?' done':'')+'">'+
+        '<input type="checkbox" data-check="'+x.id+'"'+(x.done?' checked':'')+' aria-label="Concluir: '+esc(x.text)+'">'+
+        '<span class="item-text">'+esc(x.text)+'</span>'+
+        (x.resp ? '<span class="item-resp">'+esc(x.resp)+'</span>' : '')+
+        (x.done && x.doneAt ? '<span class="item-when">✓ '+fmtBR(x.doneAt)+'</span>' : '')+
+        '<button class="item-del" data-del="'+x.id+'" title="Excluir item">×</button></div>';
+    });
+    gHtml += '</div>';
+  });
+  if(!dates.length){
+    gHtml = '<div class="empty-note">Nenhuma atividade ainda. Adicione acima ou insira o checklist padrão deste cômodo.</div>';
+  }
+
+  $('#modalBox').innerHTML =
+    '<div class="modal-head">'+
+      '<h3 id="modalTitle">'+esc(r.name)+'<span class="mh-pct">'+(s.total? s.pct+'%' : '')+'</span></h3>'+
+      '<button class="modal-close" id="btnClose" aria-label="Fechar">×</button>'+
+    '</div>'+
+    '<div class="modal-meter"><i style="width:'+s.pct+'%"></i></div>'+
+    '<div class="modal-body">'+
+      '<form class="add-form" id="addForm">'+
+        '<input type="date" id="inpDate" value="'+todayISO()+'" required aria-label="Data da inspeção">'+
+        '<input type="text" class="inp-text" id="inpText" placeholder="Nova atividade… ex.: Rejunte do piso" maxlength="120" required>'+
+        '<input type="text" class="inp-resp" id="inpResp" placeholder="Resp." maxlength="20" aria-label="Responsável">'+
+        '<button class="btn primary" type="submit">Adicionar</button>'+
+      '</form>'+
+      '<div class="preset-row"><button class="preset-btn" id="btnPreset">＋ Inserir checklist padrão de '+esc(r.name)+' ('+PRESETS[openRoom].length+' itens)</button></div>'+
+      gHtml+
+    '</div>';
+
+  $('#btnClose').addEventListener('click', closeModal);
+  $('#addForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const text = $('#inpText').value.trim();
+    const date = $('#inpDate').value || todayISO();
+    if(!text) return;
+    acts(openRoom).push({ id:'a'+Date.now()+Math.floor(Math.random()*1e4), text, date, resp:$('#inpResp').value.trim(), done:false, doneAt:null });
+    persist(); renderModal(); renderAll(true);
+    $('#inpText').value=''; $('#inpText').focus();
+  });
+  $('#btnPreset').addEventListener('click', () => {
+    const date = $('#inpDate').value || todayISO();
+    const existing = new Set(acts(openRoom).map(x=>x.text.toLowerCase()));
+    let added = 0;
+    PRESETS[openRoom].forEach(t => {
+      if(!existing.has(t.toLowerCase())){
+        acts(openRoom).push({ id:'a'+Date.now()+Math.floor(Math.random()*1e6)+added, text:t, date, resp:'', done:false, doneAt:null });
+        added++;
+      }
+    });
+    persist(); renderModal(); renderAll(true);
+    toast(added ? added+' itens adicionados em '+ROOMS[openRoom].name : 'Checklist padrão já inserido');
+  });
+  $('#modalBox').querySelectorAll('[data-check]').forEach(cb => cb.addEventListener('change', () => {
+    const x = acts(openRoom).find(a=>a.id===cb.dataset.check);
+    if(!x) return;
+    const before = roomStats(openRoom).pct;
+    x.done = cb.checked;
+    x.doneAt = cb.checked ? todayISO() : null;
+    persist(); renderModal(); renderAll(true);
+    const after = roomStats(openRoom).pct;
+    if(after===100 && before<100) toast('🎉 '+ROOMS[openRoom].name+' 100% concluído!','good');
+  }));
+  $('#modalBox').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+    const a = apt();
+    a.rooms[openRoom] = a.rooms[openRoom].filter(x=>x.id!==b.dataset.del);
+    persist(); renderModal(); renderAll(true);
+  }));
+}
+
+$('#modalBackdrop').addEventListener('click', e => { if(e.target === $('#modalBackdrop')) closeModal(); });
+document.addEventListener('keydown', e => { if(e.key==='Escape' && openRoom) closeModal(); });
+
+/* ---------------- report / print ---------------- */
+function buildReport(){
+  const a = apt();
+  const s = aptStats();
+  let html =
+    '<div class="rep-titleblock">'+
+      '<div class="rep-cell"><div class="rep-label">Obra · Controle de Acabamento</div><h1>'+esc(a.name)+'</h1>'+
+      '<div style="font-size:10px;color:#555">Relatório de vistorias de acabamento — checklist por cômodo</div></div>'+
+      '<div class="rep-cell"><div class="rep-label">Emitido em</div><div class="rep-value">'+fmtBR(todayISO())+'</div></div>'+
+      '<div class="rep-cell"><div class="rep-label">Progresso geral</div><div class="rep-value">'+s.pct+'% ('+s.done+'/'+s.total+')</div></div>'+
+    '</div>';
+
+  html += '<h2>Resumo por cômodo</h2><table><thead><tr>'+
+    '<th>Cômodo</th><th>Itens</th><th>Concluídos</th><th>Pendentes</th><th>%</th><th>Situação</th></tr></thead><tbody>';
+  ROOM_ORDER.forEach(id => {
+    const st = roomStats(id);
+    const sit = !st.total ? 'Sem itens' : st.pct===100 ? 'CONCLUÍDO' : st.pct>0 ? 'Em andamento' : 'Não iniciado';
+    html += '<tr><td>'+esc(ROOMS[id].name)+'</td><td class="num">'+st.total+'</td><td class="num">'+st.done+'</td>'+
+      '<td class="num">'+(st.total-st.done)+'</td><td class="num">'+(st.total? st.pct+'%':'—')+'</td><td>'+sit+'</td></tr>';
+  });
+  html += '</tbody></table>';
+
+  ROOM_ORDER.forEach(id => {
+    const list = acts(id);
+    if(!list.length) return;
+    html += '<div class="room-block"><h2>'+esc(ROOMS[id].name)+' — '+roomStats(id).pct+'%</h2>';
+    const groups = {};
+    list.forEach(x => { (groups[x.date] = groups[x.date] || []).push(x); });
+    Object.keys(groups).sort().forEach(d => {
+      html += '<div class="rep-date">Vistoria de '+fmtLongBR(d)+'</div><ul>';
+      groups[d].forEach(x => {
+        html += '<li><span class="cb">'+(x.done?'☑':'☐')+'</span><span>'+esc(x.text)+'</span>'+
+          '<span class="li-meta">'+(x.resp? esc(x.resp)+' · ':'')+(x.done&&x.doneAt? 'concluído em '+fmtBR(x.doneAt):'pendente')+'</span></li>';
+      });
+      html += '</ul>';
+    });
+    html += '</div>';
+  });
+
+  html += '<div class="sigs">'+
+    '<div class="sig">Responsável pela vistoria<br>Nome / Data</div>'+
+    '<div class="sig">Engenheiro(a) responsável<br>Nome / CREA / Data</div></div>';
+
+  $('#report').innerHTML = html;
+}
+$('#btnPrint').addEventListener('click', () => { buildReport(); window.print(); });
+window.addEventListener('beforeprint', buildReport);
+
+/* ---------------- export / import ---------------- */
+$('#btnExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'checklist-acabamento-'+todayISO()+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Backup baixado');
+});
+$('#btnImport').addEventListener('click', () => $('#fileImport').click());
+$('#fileImport').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try{
+      const data = JSON.parse(rd.result);
+      if(!data || !Array.isArray(data.apartments)) throw new Error('formato');
+      state = data;
+      if(!state.apartments.length) state.apartments.push(newApt('Apto 101'));
+      if(!state.currentId || !state.apartments.some(a=>a.id===state.currentId)) state.currentId = state.apartments[0].id;
+      persist(); renderAll();
+      toast('Backup restaurado','good');
+    }catch(err){ toast('Arquivo inválido — use um backup gerado aqui.'); }
+  };
+  rd.readAsText(f);
+  e.target.value = '';
+});
+
+/* ---------------- render root ---------------- */
+function renderAll(keepModal){
+  renderTitleblock();
+  renderChips();
+  renderPlan();
+  renderSide();
+  if(!keepModal && openRoom) closeModal();
+}
+renderAll();
+})();
+</script>
+
+</body>
+</html>
