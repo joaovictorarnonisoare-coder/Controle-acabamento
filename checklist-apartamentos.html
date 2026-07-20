@@ -6,6 +6,8 @@
 </head>
 <body>
 <title>Dashboards Obras — Checklist de Acabamento</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
   /* ===== Identidade "Dashboards Obras" — grafite + roxo + verde neon (dark obrigatório) ===== */
   :root{
@@ -76,6 +78,10 @@
   .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   .btn.ghost-add{border-style:dashed;color:var(--ink2)}
   .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .cloud-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line)}
+  .cloud-badge.conn-wait{color:var(--ink3);background:var(--surface2)}
+  .cloud-badge.conn-on{color:#08130f;background:var(--green);border-color:var(--green)}
+  .cloud-badge.conn-off{color:#fff;background:var(--bad);border-color:var(--bad)}
   .popover{
     position:absolute;margin-top:6px;z-index:30;display:flex;gap:6px;padding:10px;
     background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
@@ -232,6 +238,7 @@
   <nav class="toolbar">
     <div class="apt-row" id="aptRow"></div>
     <div class="actions">
+      <span class="cloud-badge conn-wait" id="cloudStatus" title="Estado da sincronização com a nuvem">☁️ Conectando…</span>
       <button class="btn" id="btnExport" title="Baixar backup dos dados em JSON">⬇ Backup</button>
       <button class="btn" id="btnImport" title="Restaurar backup JSON">⬆ Restaurar</button>
       <input type="file" id="fileImport" accept=".json,application/json" class="hidden">
@@ -342,6 +349,10 @@ const PRESETS = {
 /* ---------------- state & persistence (local, com blindagem try/catch) ---------------- */
 const STORE_KEY = 'checklistAcabamentoV1';
 let memoryFallback = null;
+// variáveis da nuvem (usadas por persist/schedulePush; inicializadas em startCloud, no fim)
+let db = null;
+let lastWrittenJSON = '';
+let pushTimer = null;
 
 function loadState(){
   try{
@@ -354,6 +365,7 @@ function loadState(){
 function persist(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   catch(e){ memoryFallback = state; }
+  schedulePush();
 }
 
 function newApt(name){
@@ -920,6 +932,91 @@ function renderAll(keepModal){
   if(!keepModal && openRoom) closeModal();
 }
 renderAll();
+
+/* ================================================================
+   NUVEM — Firebase v8 (compat) via tag <script>
+   - .on('value') escuta; .set() salva (protocolo Dashboards Obras)
+   - Só os DADOS sincronizam; o apartamento que cada um está vendo
+     (currentId) é local de cada aparelho.
+   - Eco-proteção: ignora o retorno da própria escrita (sem loop).
+   - Nuvem vazia: o primeiro aparelho envia os dados locais.
+   ================================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyD62IOFd_2qXcQ-VM5dDsfa6EzrWnJ0mQQ",
+  authDomain: "checklist-rev03.firebaseapp.com",
+  databaseURL: "https://checklist-rev03-default-rtdb.firebaseio.com",
+  projectId: "checklist-rev03",
+  storageBucket: "checklist-rev03.firebasestorage.app",
+  messagingSenderId: "658283985434",
+  appId: "1:658283985434:web:7e7e9582b29eac2d472fa3"
+};
+const FB_PATH = 'obras/checklist';
+
+function setCloudStatus(mode){
+  const el = document.getElementById('cloudStatus');
+  if(!el) return;
+  el.className = 'cloud-badge ' + (mode==='on' ? 'conn-on' : mode==='off' ? 'conn-off' : 'conn-wait');
+  el.textContent = mode==='on' ? '☁️ Nuvem conectada'
+    : mode==='off' ? '☁️ Sem nuvem (só local)'
+    : '☁️ Conectando…';
+}
+
+function schedulePush(){
+  if(!db) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(pushToCloud, 350);
+}
+
+function pushToCloud(){
+  if(!db) return;
+  try{
+    const payload = { version:1, apartments: state.apartments };
+    const norm = normalizeState(payload);
+    lastWrittenJSON = norm ? JSON.stringify(norm.apartments) : '';
+    db.ref(FB_PATH).set(payload).catch(e => console.warn('Erro ao salvar na nuvem:', e.message));
+  }catch(e){ console.warn('Erro ao salvar na nuvem:', e.message); }
+}
+
+function startCloud(){
+  if(typeof firebase === 'undefined'){ setCloudStatus('off'); return; }
+  try{
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  }catch(e){
+    setCloudStatus('off');
+    console.error('Firebase init error:', e);
+    return;
+  }
+
+  // indicador de conexão em tempo real
+  db.ref('.info/connected').on('value', s => {
+    setCloudStatus(s.val() === true ? 'on' : 'wait');
+  });
+
+  // escuta os dados da equipe
+  db.ref(FB_PATH).on('value', snap => {
+    const raw = snap.val();
+    if(raw == null){ pushToCloud(); return; } // nuvem vazia → semeia com os dados locais
+    const norm = normalizeState(raw);
+    if(!norm) return;
+    const remoteJSON = JSON.stringify(norm.apartments);
+    if(remoteJSON === lastWrittenJSON) return;                       // eco da nossa escrita
+    if(remoteJSON === JSON.stringify(state.apartments)) return;      // nada mudou
+    state.apartments = norm.apartments;
+    if(!state.apartments.length) state.apartments.push(newApt('Apto 101'));
+    if(!state.currentId || !state.apartments.some(a=>a.id===state.currentId)){
+      state.currentId = state.apartments[0].id;
+    }
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+    renderAll(true);
+    if(openRoom) renderModal();
+    toast('☁️ Atualizado pela equipe');
+  }, e => {
+    setCloudStatus('off');
+    console.warn('Nuvem indisponível:', e.message);
+  });
+}
+startCloud();
 })();
 </script>
 
