@@ -5,53 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-<title>Checklist de Acabamento — Planta Interativa</title>
-<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js"></script>
+<title>Dashboards Obras — Checklist de Acabamento</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
+  /* ===== Identidade "Dashboards Obras" — grafite + roxo + verde neon (dark obrigatório) ===== */
   :root{
-    --paper:#f1f4f7; --surface:#ffffff; --surface2:#e9eef2;
-    --ink:#1b2733; --ink2:#52657a; --ink3:#8595a6;
-    --line:#d3dce4; --plan:#35618e; --plan-soft:#b7cbdd; --plan-fill:#f8fafc;
-    --accent:#e8760a; --accent-soft:rgba(232,118,10,.12); --accent-ink:#ffffff;
-    --good:#1f8a4c; --good-strong:#2ea862; --good-soft:rgba(46,168,98,.20);
-    --warn:#c07a00; --warn-line:rgba(192,122,0,.45);
-    --bad:#c23b2e;
-    --shadow:0 10px 28px rgba(27,39,51,.10);
+    --bg:#1a1a1a; --panel:#2d2d2d; --panel-2:#242424;
+    --paper:#1a1a1a; --surface:#2d2d2d; --surface2:#242424;
+    --ink:#f2f2f7; --ink2:#b9b9c6; --ink3:#8a8a99;
+    --line:#3a3a42;
+    --purple:#8B3DFF; --purple-deep:#5E1CA6; --purple-soft:rgba(139,61,255,.16);
+    --green:#04D9B2; --green-deep:#03A688; --green-soft:rgba(4,217,178,.16);
+    --plan:#8B3DFF; --plan-soft:#5E1CA6; --plan-fill:#242430;
+    --accent:#04D9B2; --accent-soft:rgba(4,217,178,.16); --accent-ink:#08130f;
+    --good:#04D9B2; --good-strong:#04D9B2; --good-soft:rgba(4,217,178,.18);
+    --warn:#f0a92c; --warn-line:rgba(240,169,44,.5);
+    --bad:#ff5d52;
+    --shadow:0 12px 32px rgba(0,0,0,.5);
     --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
     --sans:system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --paper:#0e151c; --surface:#161f29; --surface2:#1c2833;
-      --ink:#e6edf3; --ink2:#9fb0c0; --ink3:#67788a;
-      --line:#26333f; --plan:#6ea8d8; --plan-soft:#31506e; --plan-fill:#121b24;
-      --accent:#f08a2a; --accent-soft:rgba(240,138,42,.14); --accent-ink:#14100a;
-      --good:#46c07a; --good-strong:#46c07a; --good-soft:rgba(70,192,122,.20);
-      --warn:#e8a83c; --warn-line:rgba(232,168,60,.40);
-      --bad:#e06055;
-      --shadow:0 10px 28px rgba(0,0,0,.45);
-    }
-  }
-  :root[data-theme="light"]{
-    --paper:#f1f4f7; --surface:#ffffff; --surface2:#e9eef2;
-    --ink:#1b2733; --ink2:#52657a; --ink3:#8595a6;
-    --line:#d3dce4; --plan:#35618e; --plan-soft:#b7cbdd; --plan-fill:#f8fafc;
-    --accent:#e8760a; --accent-soft:rgba(232,118,10,.12); --accent-ink:#ffffff;
-    --good:#1f8a4c; --good-strong:#2ea862; --good-soft:rgba(46,168,98,.20);
-    --warn:#c07a00; --warn-line:rgba(192,122,0,.45);
-    --bad:#c23b2e;
-    --shadow:0 10px 28px rgba(27,39,51,.10);
-  }
-  :root[data-theme="dark"]{
-    --paper:#0e151c; --surface:#161f29; --surface2:#1c2833;
-    --ink:#e6edf3; --ink2:#9fb0c0; --ink3:#67788a;
-    --line:#26333f; --plan:#6ea8d8; --plan-soft:#31506e; --plan-fill:#121b24;
-    --accent:#f08a2a; --accent-soft:rgba(240,138,42,.14); --accent-ink:#14100a;
-    --good:#46c07a; --good-strong:#46c07a; --good-soft:rgba(70,192,122,.20);
-    --warn:#e8a83c; --warn-line:rgba(232,168,60,.40);
-    --bad:#e06055;
-    --shadow:0 10px 28px rgba(0,0,0,.45);
   }
 
   *{box-sizing:border-box}
@@ -67,16 +40,17 @@
   /* ============ title block (carimbo de prancha) ============ */
   .titleblock{
     display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr;
-    border:2px solid var(--ink);background:var(--surface);
-    border-radius:2px;overflow:hidden;
+    border:1px solid var(--purple-deep);
+    background:linear-gradient(135deg,var(--purple-deep) 0%,#3a1270 58%,#2a1a4a 100%);
+    border-radius:12px;overflow:hidden;box-shadow:var(--shadow);
   }
-  .tb-cell{padding:10px 14px;border-left:1px solid var(--line)}
+  .tb-cell{padding:12px 16px;border-left:1px solid rgba(255,255,255,.14)}
   .tb-cell:first-child{border-left:none}
-  .tb-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:600}
-  .tb-value{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px;margin-top:2px;color:var(--ink)}
-  .tb-title{font-size:19px;font-weight:700;letter-spacing:.02em;margin-top:1px;text-wrap:balance}
-  .tb-sub{font-size:12px;color:var(--ink2)}
-  .tb-pct{color:var(--good);font-weight:700;font-size:18px}
+  .tb-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:600}
+  .tb-value{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px;margin-top:2px;color:#fff}
+  .tb-title{font-size:20px;font-weight:800;letter-spacing:.02em;margin-top:1px;text-wrap:balance;color:#fff}
+  .tb-sub{font-size:12px;color:rgba(255,255,255,.78)}
+  .tb-pct{color:var(--green);font-weight:800;font-size:19px}
 
   /* ============ toolbar ============ */
   .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:16px 0}
@@ -87,7 +61,7 @@
     transition:border-color .15s,background .15s,color .15s;
   }
   .chip:hover{border-color:var(--accent)}
-  .chip.active{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+  .chip.active{background:var(--purple);border-color:var(--purple);color:#fff}
   .chip .chip-pct{font-family:var(--mono);font-size:11px;opacity:.75}
   .chip-tools{display:inline-flex;gap:2px}
   .chip-tools button{border:none;background:none;color:inherit;opacity:.65;padding:0 3px;font-size:12px}
@@ -103,7 +77,11 @@
   .btn:active{transform:translateY(1px)}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   .btn.ghost-add{border-style:dashed;color:var(--ink2)}
-  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .cloud-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line)}
+  .cloud-badge.conn-wait{color:var(--ink3);background:var(--surface2)}
+  .cloud-badge.conn-on{color:#08130f;background:var(--green);border-color:var(--green)}
+  .cloud-badge.conn-off{color:#fff;background:var(--bad);border-color:var(--bad)}
   .popover{
     position:absolute;margin-top:6px;z-index:30;display:flex;gap:6px;padding:10px;
     background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
@@ -116,7 +94,7 @@
   .layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);gap:16px;align-items:start}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
   .card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
-  .card-head h2{margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:700}
+  .card-head h2{margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#b98bff;font-weight:700}
   .card-body{padding:14px 16px}
 
   /* legend */
@@ -149,7 +127,7 @@
 
   /* ============ sidebar ============ */
   .side{display:flex;flex-direction:column;gap:16px}
-  .hero-num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:46px;font-weight:700;line-height:1;color:var(--ink)}
+  .hero-num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:46px;font-weight:800;line-height:1;color:var(--green)}
   .hero-num small{font-size:22px;color:var(--ink3);font-weight:600}
   .hero-caption{color:var(--ink2);font-size:12.5px;margin-top:4px}
   .meter{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;margin-top:12px}
@@ -234,11 +212,12 @@
   .rep-hint{font-size:11px;color:#777;margin-right:auto}
   .rbtn{padding:8px 14px;border-radius:8px;border:1px solid #ccc;background:#f5f5f5;color:#111;font-weight:600;font-size:13px}
   .rbtn:hover{border-color:#999}
-  .rbtn.primary{background:#e8760a;border-color:#e8760a;color:#fff}
+  .rbtn.primary{background:#03A688;border-color:#03A688;color:#fff}
   @media print{
-    body{background:#fff;color:#000}
-    .app,.modal-backdrop,#toast,.rep-actions{display:none !important}
-    #report,body.report-open #report{display:block;position:static;padding:0;overflow:visible}
+    @page{size:A4;margin:12mm}
+    html,body{background:#fff !important;color:#000 !important}
+    .app,.modal-backdrop,#toast,.rep-actions,form,.btn{display:none !important}
+    #report,body.report-open #report{display:block;position:static;padding:0;overflow:visible;background:#fff}
   }
 
   /* ============ responsive ============ */
@@ -259,10 +238,11 @@
   <nav class="toolbar">
     <div class="apt-row" id="aptRow"></div>
     <div class="actions">
+      <span class="cloud-badge conn-wait" id="cloudStatus" title="Estado da sincronização na nuvem">☁️ Conectando…</span>
       <button class="btn" id="btnExport" title="Baixar backup dos dados em JSON">⬇ Backup</button>
       <button class="btn" id="btnImport" title="Restaurar backup JSON">⬆ Restaurar</button>
       <input type="file" id="fileImport" accept=".json,application/json" class="hidden">
-      <button class="btn primary" id="btnPrint">🖨 Imprimir relatório</button>
+      <button class="btn primary" id="btnPrint">🖨️ Imprimir PDF (A4)</button>
     </div>
   </nav>
 
@@ -386,12 +366,27 @@ function initFirebase(){
     db = firebase.database();
     fbReady = true;
 
+    // status de conexão visível
+    db.ref('.info/connected').on('value', snap => {
+      setCloudStatus(snap.val() === true ? 'on' : 'off');
+    });
+
     syncFromFirebase();
     console.log('✓ Firebase inicializado');
   }catch(e){
     fbError = e.message;
+    setCloudStatus('off');
     console.error('Firebase init error:', e);
   }
+}
+
+function setCloudStatus(mode){
+  const el = document.getElementById('cloudStatus');
+  if(!el) return;
+  el.className = 'cloud-badge ' + (mode==='on' ? 'conn-on' : mode==='off' ? 'conn-off' : 'conn-wait');
+  el.textContent = mode==='on' ? '☁️ Nuvem conectada'
+    : mode==='off' ? '☁️ Offline (só neste aparelho)'
+    : '☁️ Conectando…';
 }
 
 /* ---------------- state & persistence ---------------- */
@@ -878,7 +873,7 @@ function buildReport(){
       '<button class="rbtn" id="btnRepClose">← Voltar ao painel</button>'+
       '<span class="rep-hint">Se a janela de impressão não abrir, use "Baixar HTML" e imprima o arquivo baixado.</span>'+
       '<button class="rbtn" id="btnRepDownload">⬇ Baixar HTML</button>'+
-      '<button class="rbtn primary" id="btnRepPrint">🖨 Imprimir / Salvar PDF</button>'+
+      '<button class="rbtn primary" id="btnRepPrint">🖨️ Imprimir PDF (A4)</button>'+
     '</div>';
   $('#report').innerHTML = actions + reportBody();
   $('#btnRepClose').addEventListener('click', closeReport);
@@ -956,7 +951,10 @@ function renderAll(keepModal){
   if(!keepModal && openRoom) closeModal();
 }
 renderAll();
-setTimeout(() => { if(typeof firebase !== 'undefined') initFirebase(); }, 500);
+setTimeout(() => {
+  if(typeof firebase !== 'undefined') initFirebase();
+  else setCloudStatus('off');
+}, 400);
 })();
 </script>
 
