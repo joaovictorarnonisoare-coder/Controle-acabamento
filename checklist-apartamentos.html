@@ -6,6 +6,8 @@
 </head>
 <body>
 <title>Checklist de Acabamento — Planta Interativa</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 <style>
   :root{
     --paper:#f1f4f7; --surface:#ffffff; --surface2:#e9eef2;
@@ -364,9 +366,30 @@ const PRESETS = {
   ],
 };
 
-/* ---------------- state ---------------- */
+/* ---------------- firebase init ---------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyC2pKZW_Yx16VzxahShSBspTNLxzpRUkec",
+  authDomain: "checklist-apartamentos-rev01.firebaseapp.com",
+  databaseURL: "https://checklist-apartamentos-rev01-default-rtdb.firebaseio.com",
+  projectId: "checklist-apartamentos-rev01",
+  storageBucket: "checklist-apartamentos-rev01.firebasestorage.app",
+  messagingSenderId: "63653840843",
+  appId: "1:63653840843:web:48d85864ebc4fcc1eb184e",
+  measurementId: "G-2K9XGVR0W2"
+};
+let db = null, fbReady = false, fbError = null;
+try{
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  fbReady = true;
+}catch(e){ fbError = e.message; }
+
+/* ---------------- state & persistence ---------------- */
 const STORE_KEY = 'checklistAcabamentoV1';
+const FB_PATH = 'checklist/data';
 let memoryFallback = null;
+let syncLocked = false;
+
 function loadState(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
@@ -374,9 +397,38 @@ function loadState(){
   }catch(e){ if(memoryFallback) return memoryFallback; }
   return null;
 }
+
 function persist(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   catch(e){ memoryFallback = state; }
+  if(fbReady && !syncLocked){ syncToFirebase(); }
+}
+
+function syncToFirebase(){
+  if(!fbReady || !db) return;
+  syncLocked = true;
+  db.ref(FB_PATH).set(state).catch(e => {
+    console.warn('Firebase sync error:', e.message);
+  }).finally(() => { syncLocked = false; });
+}
+
+function syncFromFirebase(){
+  if(!fbReady || !db) return;
+  db.ref(FB_PATH).on('value', snap => {
+    const remote = snap.val();
+    if(remote && typeof remote === 'object'){
+      const oldApts = (state.apartments || []).map(a => a.id);
+      state = remote;
+      if(!state.apartments) state.apartments = [];
+      if(!state.currentId) state.currentId = state.apartments[0]?.id || null;
+      if(oldApts.some(id => !state.apartments.find(a => a.id === id))){
+        toast('Dados sincronizados da nuvem');
+      }
+      renderAll();
+    }
+  }, e => {
+    console.warn('Firebase listen error:', e.message);
+  });
 }
 
 function newApt(name){
@@ -899,6 +951,8 @@ function renderAll(keepModal){
   if(!keepModal && openRoom) closeModal();
 }
 renderAll();
+if(fbReady){ syncFromFirebase(); }
+else if(fbError){ console.warn('Firebase não disponível:', fbError); }
 })();
 </script>
 
