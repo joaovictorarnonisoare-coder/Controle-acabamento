@@ -361,11 +361,49 @@ function newApt(name){
   ROOM_ORDER.forEach(r => rooms[r] = []);
   return { id:'apt'+Date.now()+Math.floor(Math.random()*1e4), name, rooms };
 }
-let state = loadState() || { version:1, apartments:[ newApt('Apto 101') ], currentId:null };
+
+/* Blindagem: conserta dados antigos/quebrados (ex.: salvos por versões
+   anteriores com nuvem, que removiam listas vazias). Nunca deixa o app travar. */
+function normalizeState(s){
+  if(!s || typeof s !== 'object') return null;
+  let apts = s.apartments;
+  if(!Array.isArray(apts)){
+    apts = (apts && typeof apts === 'object') ? Object.values(apts) : [];
+  }
+  const fixed = [];
+  apts.forEach((a, i) => {
+    if(!a || typeof a !== 'object') return;
+    const rooms = {};
+    ROOM_ORDER.forEach(r => {
+      let list = a.rooms && a.rooms[r];
+      if(!Array.isArray(list)){
+        list = (list && typeof list === 'object') ? Object.values(list) : [];
+      }
+      rooms[r] = list.filter(x => x && x.text).map((x, j) => ({
+        id: x.id || ('a'+Date.now()+i+'_'+j+Math.floor(Math.random()*1e4)),
+        text: String(x.text),
+        date: (typeof x.date === 'string' && x.date) ? x.date : todayISO(),
+        resp: x.resp ? String(x.resp) : '',
+        done: !!x.done,
+        doneAt: x.doneAt || null
+      }));
+    });
+    fixed.push({
+      id: a.id || ('apt'+Date.now()+i),
+      name: a.name ? String(a.name) : ('Apto '+(i+1)),
+      rooms
+    });
+  });
+  if(!fixed.length) return null;
+  return { version:1, apartments:fixed, currentId:s.currentId || null };
+}
+
+let state = normalizeState(loadState()) || { version:1, apartments:[ newApt('Apto 101') ], currentId:null };
 if(!state.apartments.length) state.apartments.push(newApt('Apto 101'));
 if(!state.currentId || !state.apartments.some(a=>a.id===state.currentId)){
   state.currentId = state.apartments[0].id;
 }
+persist();
 
 let openRoom = null;          // room id of open modal
 let deleteArmedApt = null;    // two-step apartment delete
@@ -375,7 +413,13 @@ const $ = sel => document.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function apt(){ return state.apartments.find(a=>a.id===state.currentId); }
-function acts(roomId){ const a = apt(); return (a && a.rooms[roomId]) || []; }
+function acts(roomId){
+  const a = apt();
+  if(!a) return [];
+  if(!a.rooms) a.rooms = {};
+  if(!Array.isArray(a.rooms[roomId])) a.rooms[roomId] = [];
+  return a.rooms[roomId];
+}
 
 function roomStats(roomId){
   const list = acts(roomId);
@@ -385,7 +429,8 @@ function roomStats(roomId){
 function aptStats(a){
   a = a || apt();
   let total=0, done=0;
-  ROOM_ORDER.forEach(r => (a.rooms[r]||[]).forEach(x => { total++; if(x.done) done++; }));
+  const rooms = (a && a.rooms) || {};
+  ROOM_ORDER.forEach(r => (Array.isArray(rooms[r]) ? rooms[r] : []).forEach(x => { total++; if(x && x.done) done++; }));
   return { total, done, pct: total ? Math.round(done/total*100) : 0 };
 }
 
@@ -854,10 +899,9 @@ $('#fileImport').addEventListener('change', e => {
   const rd = new FileReader();
   rd.onload = () => {
     try{
-      const data = JSON.parse(rd.result);
-      if(!data || !Array.isArray(data.apartments)) throw new Error('formato');
+      const data = normalizeState(JSON.parse(rd.result));
+      if(!data) throw new Error('formato');
       state = data;
-      if(!state.apartments.length) state.apartments.push(newApt('Apto 101'));
       if(!state.currentId || !state.apartments.some(a=>a.id===state.currentId)) state.currentId = state.apartments[0].id;
       persist(); renderAll();
       toast('Backup restaurado','good');
