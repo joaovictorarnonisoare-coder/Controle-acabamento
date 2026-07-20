@@ -6,8 +6,6 @@
 </head>
 <body>
 <title>Dashboards Obras — Checklist de Acabamento</title>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
   /* ===== Identidade "Dashboards Obras" — grafite + roxo + verde neon (dark obrigatório) ===== */
   :root{
@@ -78,10 +76,6 @@
   .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   .btn.ghost-add{border-style:dashed;color:var(--ink2)}
   .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .cloud-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line)}
-  .cloud-badge.conn-wait{color:var(--ink3);background:var(--surface2)}
-  .cloud-badge.conn-on{color:#08130f;background:var(--green);border-color:var(--green)}
-  .cloud-badge.conn-off{color:#fff;background:var(--bad);border-color:var(--bad)}
   .popover{
     position:absolute;margin-top:6px;z-index:30;display:flex;gap:6px;padding:10px;
     background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
@@ -238,7 +232,6 @@
   <nav class="toolbar">
     <div class="apt-row" id="aptRow"></div>
     <div class="actions">
-      <span class="cloud-badge conn-wait" id="cloudStatus" title="Estado da sincronização na nuvem">☁️ Conectando…</span>
       <button class="btn" id="btnExport" title="Baixar backup dos dados em JSON">⬇ Backup</button>
       <button class="btn" id="btnImport" title="Restaurar backup JSON">⬆ Restaurar</button>
       <input type="file" id="fileImport" accept=".json,application/json" class="hidden">
@@ -346,52 +339,8 @@ const PRESETS = {
   ],
 };
 
-/* ---------------- firebase init (global SDK) ---------------- */
-let fbReady = false, fbError = null, db = null;
-let syncLocked = false, remoteSyncing = false;
-
-function initFirebase(){
-  try{
-    const firebaseConfig = {
-      apiKey: "AIzaSyCyQdofMTlF14G40gH_gQkwG6gRWcY3DcE",
-      authDomain: "checklist-rev02.firebaseapp.com",
-      databaseURL: "https://checklist-rev02-default-rtdb.firebaseio.com",
-      projectId: "checklist-rev02",
-      storageBucket: "checklist-rev02.firebasestorage.app",
-      messagingSenderId: "984092693202",
-      appId: "1:984092693202:web:a6ea87346039a49002930b"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-    fbReady = true;
-
-    // status de conexão visível
-    db.ref('.info/connected').on('value', snap => {
-      setCloudStatus(snap.val() === true ? 'on' : 'off');
-    });
-
-    syncFromFirebase();
-    console.log('✓ Firebase inicializado');
-  }catch(e){
-    fbError = e.message;
-    setCloudStatus('off');
-    console.error('Firebase init error:', e);
-  }
-}
-
-function setCloudStatus(mode){
-  const el = document.getElementById('cloudStatus');
-  if(!el) return;
-  el.className = 'cloud-badge ' + (mode==='on' ? 'conn-on' : mode==='off' ? 'conn-off' : 'conn-wait');
-  el.textContent = mode==='on' ? '☁️ Nuvem conectada'
-    : mode==='off' ? '☁️ Offline (só neste aparelho)'
-    : '☁️ Conectando…';
-}
-
-/* ---------------- state & persistence ---------------- */
+/* ---------------- state & persistence (local, com blindagem try/catch) ---------------- */
 const STORE_KEY = 'checklistAcabamentoV1';
-const FB_PATH = 'checklist/data';
 let memoryFallback = null;
 
 function loadState(){
@@ -405,30 +354,6 @@ function loadState(){
 function persist(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   catch(e){ memoryFallback = state; }
-  if(fbReady && !syncLocked){ syncToFirebase(); }
-}
-
-function syncToFirebase(){
-  if(!fbReady || !db) return;
-  syncLocked = true;
-  db.ref(FB_PATH).set(state).catch(e => {
-    console.warn('Firebase sync error:', e.message);
-  }).finally(() => { syncLocked = false; });
-}
-
-function syncFromFirebase(){
-  if(!fbReady || !db) return;
-  db.ref(FB_PATH).on('value', snap => {
-    const remote = snap.val();
-    if(remote && typeof remote === 'object' && !syncLocked && !remoteSyncing){
-      remoteSyncing = true;
-      state = remote;
-      if(!state.apartments) state.apartments = [];
-      if(!state.currentId) state.currentId = state.apartments[0]?.id || null;
-      renderAll();
-      remoteSyncing = false;
-    }
-  }, e => { console.warn('Firebase listen error:', e.message); });
 }
 
 function newApt(name){
@@ -942,7 +867,7 @@ $('#fileImport').addEventListener('change', e => {
   e.target.value = '';
 });
 
-/* ---------------- render root & firebase init ---------------- */
+/* ---------------- render root ---------------- */
 function renderAll(keepModal){
   renderTitleblock();
   renderChips();
@@ -951,10 +876,6 @@ function renderAll(keepModal){
   if(!keepModal && openRoom) closeModal();
 }
 renderAll();
-setTimeout(() => {
-  if(typeof firebase !== 'undefined') initFirebase();
-  else setCloudStatus('off');
-}, 400);
 })();
 </script>
 
