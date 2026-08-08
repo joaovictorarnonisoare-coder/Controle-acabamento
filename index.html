@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Controle acadêmico completo: calendário, tarefas com prioridade, lembretes, anexos, notas, faltas, estudos e progresso até a formatura.">
-<meta name="theme-color" content="#2a78d6">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Faculdade">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
 <title>Painel Acadêmico — Controle da Faculdade</title>
 <style>
 /* ========================================================================
@@ -67,11 +77,22 @@
    ======================================================================== */
 *{box-sizing:border-box}
 html,body{height:100%}
+html{-webkit-text-size-adjust:100%; text-size-adjust:100%}
 body{
   margin:0; background:var(--plane); color:var(--ink);
   font-family:var(--sans); font-size:14px; line-height:1.5;
   -webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:none;
 }
+/* toque: sem flash azul, sem menu de seleção, sem zoom de duplo toque */
+button,.chip,.nav-item,.task-check,.seg button,.cal-cell,.cd,.color-pick button,.kcard,.mini-ev,.tt-block{
+  -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; touch-action:manipulation;
+}
+.btn,.chip,.nav-item,.seg button,.cal-dow,.sec-title,.stat .lbl,.kbd{-webkit-user-select:none; user-select:none}
+.modal-body,.drawer-body,.notif-list,.tbl-wrap,.tt-wrap,.nav,.file-grid,.kanban{
+  -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+}
+body.locked{overflow:hidden; touch-action:none}
 h1,h2,h3,h4{margin:0; font-weight:640; letter-spacing:-.011em}
 p{margin:0}
 button,input,select,textarea{font:inherit; color:inherit}
@@ -373,13 +394,16 @@ input[type=checkbox]{accent-color:var(--brand);width:16px;height:16px}
 .overlay{
   position:fixed;inset:0;background:rgba(11,11,11,.42);backdrop-filter:blur(3px);z-index:60;
   display:flex;align-items:center;justify-content:center;padding:18px; animation:fade .16s ease;
+  touch-action:none;
 }
+.modal-body,.drawer-body{touch-action:pan-y}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
 @keyframes slideIn{from{transform:translateX(100%)}to{transform:none}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
 .modal{
   background:var(--surface);border-radius:var(--r-xl);box-shadow:var(--shadow-3);width:100%;max-width:680px;
-  max-height:92vh;display:flex;flex-direction:column;overflow:hidden;animation:pop .18s cubic-bezier(.2,.8,.3,1);
+  max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;animation:pop .18s cubic-bezier(.2,.8,.3,1);
   border:1px solid var(--border);
 }
 .modal.wide{max-width:900px}
@@ -393,9 +417,11 @@ input[type=checkbox]{accent-color:var(--brand);width:16px;height:16px}
 .row.r3{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
 .drawer{
   position:fixed;top:0;right:0;bottom:0;width:min(430px,100%);background:var(--surface);z-index:55;
+  padding-top:env(safe-area-inset-top);
   box-shadow:var(--shadow-3);border-left:1px solid var(--border);display:flex;flex-direction:column;
   animation:slideIn .2s cubic-bezier(.2,.8,.3,1);
 }
+.drawer-back{position:fixed;inset:0;background:rgba(11,11,11,.38);backdrop-filter:blur(2px);z-index:54;animation:fade .16s ease}
 .drawer-head{padding:15px 16px;border-bottom:1px solid var(--border-2);display:flex;align-items:center;gap:9px}
 .drawer-body{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px}
 .sec-title{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:7px}
@@ -557,18 +583,83 @@ table.data td.num,table.data th.num{text-align:right;font-variant-numeric:tabula
   #sidebar{
     position:fixed;bottom:0;left:0;right:0;top:auto;width:100%;height:auto;flex-direction:row;
     border-right:none;border-top:1px solid var(--border);padding:0;z-index:40;
+    background:color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter:blur(14px);
   }
   .brand,.side-foot,.nav-sec{display:none}
-  .nav{display:flex;overflow-x:auto;padding:6px 8px calc(6px + env(safe-area-inset-bottom));gap:3px;scrollbar-width:none}
+  .nav{display:flex;overflow-x:auto;padding:6px 8px calc(4px + env(safe-area-inset-bottom));gap:2px;
+       scrollbar-width:none;scroll-snap-type:x proximity}
   .nav::-webkit-scrollbar{display:none}
-  .nav-item{flex-direction:column;gap:3px;font-size:9.5px;padding:6px 9px;min-width:62px;justify-content:center;text-align:center;flex:none}
-  .nav-item .nav-badge{position:absolute;top:2px;right:8px}
-  .nav-item{position:relative}
-  #main{padding-bottom:66px}
-  .view{padding:14px}
-  .topbar{padding:9px 12px}
+  .nav-item{flex-direction:column;gap:3px;font-size:9.5px;padding:7px 6px;width:auto;min-width:60px;max-width:76px;
+            justify-content:center;text-align:center;flex:none;position:relative;scroll-snap-align:center;margin:0}
+  .nav-item span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .nav-item .nav-badge{position:absolute;top:2px;right:7px}
+  #main{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+  .view{padding:14px 13px 18px}
+  .topbar{padding:8px 11px;padding-top:calc(8px + env(safe-area-inset-top));gap:6px;flex-wrap:nowrap}
   .quick-hint{display:none}
-  #quickAdd{font-size:15px}
+  .quick-wrap{min-width:0;flex:1}
+  .top-actions{gap:2px;flex:none}
+  .top-actions .btn-primary span{display:none}
+  .top-actions .btn-primary{padding:10px}
+  #btnHelp{display:none}
+
+  /* 16px evita o zoom automático do Safari ao focar um campo */
+  input[type=text],input[type=date],input[type=time],input[type=number],input[type=search],
+  input[type=month],select,textarea,#quickAdd{font-size:16px}
+
+  /* áreas de toque maiores */
+  .btn{padding:9px 14px}
+  .btn-icon{padding:10px}
+  .btn-sm{padding:7px 11px;font-size:12.5px}
+  .btn-icon.btn-sm{padding:8px}
+  .chip{padding:7px 13px}
+  .task{padding:13px 14px}
+  .task-check{width:22px;height:22px}
+  .t-actions{opacity:1}
+  .seg button{padding:7px 12px}
+  .file-card .acts button{padding:11px}
+  .cl-item{padding:8px 2px}
+  .menu button{padding:10px 10px}
+
+  /* janelas viram folhas na parte de baixo da tela */
+  .overlay{padding:0;align-items:flex-end}
+  .modal{max-height:92dvh;border-radius:20px 20px 0 0;max-width:none}
+  .modal.narrow,.modal.wide{max-width:none}
+  .modal-head{position:sticky;top:0;background:var(--surface);z-index:2}
+  .modal-body{padding:16px 15px}
+  .modal-foot{position:sticky;bottom:0;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+  .drawer{width:100%;border-left:none;top:auto;bottom:0;height:88dvh;max-height:88dvh;
+          border-radius:20px 20px 0 0;border-top:1px solid var(--border);padding-top:0;
+          animation:slideUp .22s cubic-bezier(.2,.8,.3,1)}
+  .drawer-head{position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0}
+  .drawer .modal-foot{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+
+  :root{--ttcol:88px}
+  body.locked #toasts{top:calc(10px + env(safe-area-inset-top));bottom:auto}
+  .banner{flex-wrap:wrap;position:relative;padding-right:16px}
+  .banner > div{min-width:calc(100% - 32px)}
+  .banner > .btn{width:100%;justify-content:center}
+  .banner > .btn-ghost{position:absolute;top:5px;right:5px;width:auto;padding:6px}
+  .banner:has(> .btn-ghost){padding-right:38px}
+  #toasts{right:10px;left:10px;bottom:calc(78px + env(safe-area-inset-bottom));max-width:none}
+  .row,.row.r3{grid-template-columns:1fr}
+  .row.r3 > .field:nth-child(-n+3){grid-column:auto}
+  .view-head h1{font-size:19px}
+  .stat .val{font-size:24px}
+  .dash-cols{gap:12px}
+  .g-stats{grid-template-columns:repeat(auto-fit,minmax(148px,1fr))}
+  .cal-top{gap:7px}
+  .cal-title{font-size:15.5px;min-width:0;flex:1;text-align:center}
+  table.data th,table.data td{padding:8px 8px}
+  .pomo{padding:16px 12px}
+  .pomo-ring{width:min(74vw,240px);height:min(74vw,240px)}
+  .pomo-time b{font-size:min(12vw,42px)}
+  #chartTip{display:none}
+}
+/* iPhone/iPad: sem hover, então nada depende de passar o mouse */
+@media (hover:none){
+  .cal-cell .qadd{opacity:1}
+  .chart:hover .bar-rect{opacity:1}
 }
 @media print{
   #sidebar,.topbar,.t-actions,.btn{display:none !important}
@@ -922,6 +1013,7 @@ table.data td.num,table.data th.num{text-align:right;font-variant-numeric:tabula
 <div id="chartTip"></div>
 <div id="modalRoot"></div>
 <input type="file" id="hiddenFile" multiple class="hidden">
+<input type="file" id="cameraFile" accept="image/*" capture="environment" class="hidden">
 <script>
 "use strict";
 /* =========================================================================
@@ -978,6 +1070,14 @@ const RECORRENCIA = [
   {v:'nenhum',l:'Não repete'},{v:'diario',l:'Todo dia'},{v:'semanal',l:'Toda semana'},
   {v:'quinzenal',l:'A cada 15 dias'},{v:'mensal',l:'Todo mês'},{v:'util',l:'Dias úteis (seg–sex)'}
 ];
+
+/* ---------------------- PLATAFORMA ---------------------- */
+const IS_TOUCH = (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) || 'ontouchstart' in window;
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+               (/Mac/.test(navigator.userAgent) && 'ontouchend' in document) ||
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IS_STANDALONE = (window.navigator.standalone === true) ||
+                      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
 
 /* ---------------------- UTILIDADES ---------------------- */
 const $  = (s, r) => (r||document).querySelector(s);
@@ -1283,6 +1383,11 @@ function toast(title, msg, type, ms){
   setTimeout(kill, ms || 5200);
   return el;
 }
+let lockN = 0;
+function lockScroll(on){
+  lockN = Math.max(0, lockN + (on ? 1 : -1));
+  document.body.classList.toggle('locked', lockN > 0);
+}
 function openModal(html, opts){
   opts = opts || {};
   const ov = document.createElement('div');
@@ -1291,12 +1396,33 @@ function openModal(html, opts){
   $('#modalRoot').appendChild(ov);
   ov.addEventListener('mousedown', e => { if (e.target === ov && !opts.sticky) closeModal(ov); });
   const f = ov.querySelector('input,select,textarea,button');
-  if (f && !opts.noFocus) setTimeout(() => f.focus(), 40);
+  if (f && !opts.noFocus && !IS_TOUCH) setTimeout(() => f.focus(), 40);
   $$('[data-close]', ov).forEach(b => b.onclick = () => closeModal(ov));
+  lockScroll(true);
   return ov;
 }
-function closeModal(ov){ if (!ov) return; ov.style.opacity = '0'; ov.style.transition = 'opacity .12s'; setTimeout(() => ov.remove(), 130); }
-function closeTop(){ const all = $$('#modalRoot .overlay, .drawer'); if (all.length) { const el = all[all.length-1]; el.classList.contains('drawer') ? el.remove() : closeModal(el); return true; } return false; }
+function closeModal(ov){
+  if (!ov || ov.dataset.fechando) return;
+  ov.dataset.fechando = '1';
+  lockScroll(false);
+  ov.style.opacity = '0'; ov.style.transition = 'opacity .12s';
+  setTimeout(() => ov.remove(), 130);
+}
+/** fecha um painel lateral liberando a rolagem */
+function fecharDrawer(dr){
+  if (!dr || dr.dataset.fechando) return;
+  dr.dataset.fechando = '1';
+  lockScroll(false);
+  $$('.drawer-back').forEach(b => b.remove());
+  dr.remove();
+}
+function closeTop(){
+  const menus = $$('.menu');
+  if (menus.length){ menus.forEach(m => m.remove()); return true; }
+  const all = $$('#modalRoot .overlay, .drawer');
+  if (all.length){ const el = all[all.length-1]; el.classList.contains('drawer') ? fecharDrawer(el) : closeModal(el); return true; }
+  return false;
+}
 function confirmar(titulo, msg, okLabel, perigo){
   return new Promise(res => {
     const ov = openModal(`
@@ -1331,6 +1457,37 @@ function menu(x, y, items){
   }), 0);
 }
 function menuItems(list){ return list.map((i,idx) => Object.assign({idx}, i)); }
+
+/* ---------------------- SALVAR / COMPARTILHAR ARQUIVOS ----------------------
+   No iPhone o "baixar" do navegador é limitado: a folha de compartilhamento
+   permite salvar em Arquivos/iCloud, mandar no WhatsApp ou abrir no Calendário. */
+async function compartilharArquivo(nome, blob, titulo){
+  try {
+    if (navigator.share && navigator.canShare){
+      const file = new File([blob], nome, {type: blob.type || 'application/octet-stream'});
+      if (navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title: titulo || nome});
+        return 'compartilhado';
+      }
+    }
+  } catch(e){
+    if (e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) return e.name === 'AbortError' ? 'cancelado' : 'negado';
+  }
+  return 'indisponivel';
+}
+async function baixar(nome, conteudo, mime){
+  const blob = conteudo instanceof Blob ? conteudo : new Blob([conteudo], {type: mime || 'text/plain;charset=utf-8'});
+  if (IS_TOUCH){
+    const r = await compartilharArquivo(nome, blob);
+    if (r === 'compartilhado' || r === 'cancelado') return r;
+  }
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u; a.download = nome; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 8000);
+  return 'baixado';
+}
 
 /* ---------------------- TEMA ---------------------- */
 function applyTheme(){
@@ -1442,9 +1599,10 @@ function bindTaskList(root){
     const row = e.target.closest('[data-task]'); if (!row) return;
     const t = S.tarefas.find(x => x.id === row.dataset.task); if (!t) return;
     const dk = row.dataset.date || t.data;
-    if (row.classList.contains('kcard')) { openTask(t.id, dk); return; }
+    const bm = e.target.closest('[data-menu]');
+    if (bm){ const r = bm.getBoundingClientRect(); taskMenu(t, dk, r.left-160, r.bottom+4); return; }
     if (e.target.closest('[data-toggle]')) { toggleDone(t, dk); return; }
-    if (e.target.closest('[data-menu]')) { const r = e.target.getBoundingClientRect(); taskMenu(t, dk, r.left-150, r.bottom+4); return; }
+    if (row.classList.contains('kcard')) { openTask(t.id, dk); return; }
     if (e.target.closest('[data-open]')) openTask(t.id, dk);
   });
 }
@@ -1472,6 +1630,7 @@ function taskMenu(t, dateKey, x, y){
     {lbl:'Adiar 1 dia', icon:'right', fn:() => adiar(t, 1)},
     {lbl:'Adiar 1 semana', icon:'right', fn:() => adiar(t, 7)},
     {lbl:'Duplicar', icon:'copy', fn:() => { const c = JSON.parse(JSON.stringify(t)); c.id = uid(); c.titulo = t.titulo + ' (cópia)'; c.status='pendente'; c.doneDates=[]; c.anexos=[]; c.criadoEm = new Date().toISOString(); S.tarefas.push(c); commit(); toast('Tarefa duplicada'); }},
+    {lbl: IS_IOS ? 'Enviar ao Calendário do iPhone' : 'Enviar ao calendário (.ics)', icon:'cal', fn:() => enviarAoCalendario(t, dateKey)},
     {sep:true},
     {head:'Marcar como'},
     ...Object.keys(STATUS).map(k => ({lbl: STATUS[k].lbl, icon: STATUS[k].icon.slice(2), fn:() => { t.status = k; if (k==='concluida') t.concluidoEm = new Date().toISOString(); commit(); }})),
@@ -1492,7 +1651,7 @@ async function delTask(id){
   const t = S.tarefas.find(x => x.id === id); if (!t) return;
   for (const fid of (t.anexos||[])) await removeFile(fid, true);
   S.tarefas = S.tarefas.filter(x => x.id !== id);
-  $$('.drawer').forEach(d => d.remove());
+  $$('.drawer').forEach(d => fecharDrawer(d));
   commit(); toast('Tarefa excluída');
 }
 
@@ -1522,9 +1681,15 @@ VIEWS.dashboard = function(){
   if (riscoNota.length) al.push(`<div class="banner"><svg class="icon"><use href="#i-award"/></svg><div style="flex:1"><b>Notas em risco</b>
     ${riscoNota.map(d => { const s = situacaoDisc(d); return `${esc(d.nome)} — ${s.precisa!=null?('precisa de '+nfmt(s.precisa,1)+' no restante'):'abaixo da média'}`; }).join(' · ')}</div>
     <button class="btn btn-sm" data-goto="desempenho">Ver</button></div>`);
-  if (!S.config.notificacoes && 'Notification' in window && Notification.permission !== 'granted' && S.tarefas.length)
+  if (IS_IOS && !IS_STANDALONE && !S.config.ocultarInstalar)
+    al.push(`<div class="banner info"><svg class="icon"><use href="#i-cap"/></svg><div style="flex:1"><b>Instale na tela de início do iPhone</b>
+      Fica com ícone próprio, abre em tela cheia, funciona sem internet e guarda seus dados com segurança.</div>
+      <button class="btn btn-sm btn-primary" id="comoInstalar">Como fazer</button>
+      <button class="btn btn-sm btn-ghost" id="naoInstalar" title="Não mostrar mais"><svg class="icon icon-sm"><use href="#i-x"/></svg></button></div>`);
+  if (!S.config.notificacoes && 'Notification' in window && Notification.permission !== 'granted'
+      && S.tarefas.length && !(IS_IOS && !IS_STANDALONE))
     al.push(`<div class="banner info"><svg class="icon"><use href="#i-bell"/></svg><div style="flex:1"><b>Ative os alertas do navegador</b>
-      Assim você recebe avisos de prova e entrega mesmo com esta aba em segundo plano.</div>
+      ${IS_TOUCH ? 'Assim os avisos de prova e entrega aparecem também fora do painel.' : 'Assim você recebe avisos de prova e entrega mesmo com esta aba em segundo plano.'}</div>
       <button class="btn btn-sm btn-primary" id="askNotif">Ativar</button></div>`);
   const diasBackup = S.config.ultimoBackup ? diffDays(hoje, S.config.ultimoBackup.slice(0,10)) : 999;
   if (S.tarefas.length > 4 && diasBackup > 14)
@@ -1598,6 +1763,8 @@ VIEWS.dashboard = function(){
   $$('[data-goto]').forEach(b => b.onclick = () => go(b.dataset.goto));
   const an = $('#askNotif'); if (an) an.onclick = pedirNotificacoes;
   const bk = $('#dashBackup'); if (bk) bk.onclick = exportarBackup;
+  const ci = $('#comoInstalar'); if (ci) ci.onclick = comoInstalar;
+  const ni = $('#naoInstalar'); if (ni) ni.onclick = () => { S.config.ocultarInstalar = true; commit(); };
 };
 
 /* =========================================================================
@@ -1685,14 +1852,14 @@ function calAgenda(){
 }
 /* --- painel lateral do dia --- */
 function abrirDia(k){
-  $$('.drawer').forEach(d => d.remove());
+  $$('.drawer').forEach(d => fecharDrawer(d));
   const dr = document.createElement('div');
   dr.className = 'drawer';
   dr.innerHTML = `
     <div class="drawer-head">
       <div style="flex:1">
         <h3 style="font-size:15px">${relDia(k)}</h3>
-        <p style="font-size:12px;color:var(--muted);text-transform:capitalize">${fmtKey(k,'longo')}</p>
+        <p style="font-size:12px;color:var(--muted)">${fmtKey(k,'longo')}</p>
       </div>
       <button class="btn btn-icon btn-ghost" data-x><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
@@ -1700,9 +1867,14 @@ function abrirDia(k){
     <div class="modal-foot">
       <button class="btn btn-primary" style="width:100%;justify-content:center" data-add><svg class="icon icon-sm"><use href="#i-plus"/></svg>Marcar algo neste dia</button>
     </div>`;
+  const fundo = document.createElement('div');
+  fundo.className = 'drawer-back';
+  document.body.appendChild(fundo);
   document.body.appendChild(dr);
-  dr.querySelector('[data-x]').onclick = () => dr.remove();
-  dr.querySelector('[data-add]').onclick = () => { dr.remove(); openTask(null, k); };
+  lockScroll(true);
+  fundo.onclick = () => fecharDrawer(dr);
+  dr.querySelector('[data-x]').onclick = () => fecharDrawer(dr);
+  dr.querySelector('[data-add]').onclick = () => { fecharDrawer(dr); openTask(null, k); };
   renderDia(k, $('#dayBody', dr));
 }
 function renderDia(k, body){
@@ -1845,13 +2017,16 @@ function kanban(lista){
         const st = statusReal(x.t, x.data);
         const d = disc(x.t.disciplinaId);
         return `<div class="kcard" draggable="true" data-task="${x.t.id}" data-date="${x.data||''}" style="border-left-color:${PRIOS[x.t.prioridade].cor}">
-          <div class="kt">${esc(x.t.titulo)}</div>
+          <div style="display:flex;gap:6px;align-items:flex-start">
+            <div class="kt" style="flex:1;min-width:0">${esc(x.t.titulo)}</div>
+            <button class="btn btn-icon btn-sm btn-ghost" data-menu title="Mover / editar" style="margin:-4px -4px 0 0"><svg class="icon icon-sm"><use href="#i-dots"/></svg></button>
+          </div>
           <div class="km">
             ${x.data?`<span class="${st==='atrasada'?'':''}" style="${st==='atrasada'?'color:var(--crit);font-weight:640':''}">${relDia(x.data)}</span>`:''}
             ${d?`<span style="display:inline-flex;align-items:center;gap:4px"><i class="disc-dot" style="background:${discCor(d)}"></i>${esc(d.nome)}</span>`:''}
             ${(x.t.anexos||[]).length?`<span>📎${(x.t.anexos||[]).length}</span>`:''}
           </div></div>`;
-      }).join('') || '<p style="font-size:11.5px;color:var(--muted);padding:6px 4px">Arraste tarefas para cá</p>'}</div></div>`;
+      }).join('') || `<p style="font-size:11.5px;color:var(--muted);padding:6px 4px">${IS_TOUCH ? 'Use o ⋮ do cartão para mover para cá' : 'Arraste tarefas para cá'}</p>`}</div></div>`;
   }).join('') + '</div>';
 }
 </script>
@@ -1964,11 +2139,12 @@ VIEWS.horarios = function(){
   const escala = 0.85, H = (fim-ini)*escala;
   const usados = [...new Set(aulas.map(x => Number(x.a.dia)))].sort();
   const dias = usados.length ? [...new Set([...usados, 1,2,3,4,5])].sort() : [1,2,3,4,5];
-  let html = `<div class="tt-wrap"><div style="min-width:${80+dias.length*118}px;padding:0 0 8px">
-    <div style="display:grid;grid-template-columns:62px repeat(${dias.length},minmax(112px,1fr));border-bottom:1px solid var(--border)">
+  const colGrid = `62px repeat(${dias.length}, minmax(var(--ttcol, 112px), 1fr))`;
+  let html = `<div class="tt-wrap"><div style="min-width:calc(62px + ${dias.length} * var(--ttcol, 112px));padding:0 0 8px">
+    <div style="display:grid;grid-template-columns:${colGrid};border-bottom:1px solid var(--border)">
       <div></div>${dias.map(d => `<div style="padding:9px 6px;text-align:center;font-size:12px;font-weight:650;color:var(--ink-2);background:var(--surface-2)">${DIAS[d]}</div>`).join('')}
     </div>
-    <div style="display:grid;grid-template-columns:62px repeat(${dias.length},minmax(112px,1fr))">
+    <div style="display:grid;grid-template-columns:${colGrid}">
       <div style="position:relative;height:${H}px">
         ${Array.from({length:(fim-ini)/60+1}, (_,i) => `<span style="position:absolute;top:${i*60*escala-6}px;right:8px;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums">${pad2((ini/60)+i)}:00</span>`).join('')}
       </div>
@@ -1985,7 +2161,8 @@ VIEWS.horarios = function(){
         </div>`;
       }).join('')}
     </div></div></div>`;
-  cont.innerHTML = html;
+  cont.innerHTML = html + (IS_TOUCH && dias.length > 3
+    ? `<p style="font-size:11.5px;color:var(--muted);margin-top:7px;text-align:center">Deslize a grade para o lado para ver os outros dias →</p>` : '');
   $$('[data-goto-disc]', cont).forEach(b => b.onclick = () => openDisc(b.dataset.gotoDisc));
 
   const minSemana = aulas.reduce((s,x) => s + Math.max(0, toMin(x.a.fim||'0:0') - toMin(x.a.inicio||'0:0')), 0);
@@ -2192,14 +2369,17 @@ VIEWS.estudos = function(){
     <span class="val" style="font-size:22px">${esc(String(s.val))}</span><span class="foot">${esc(s.foot)}</span></div>`).join('');
 
   const selD = $('#pomoDisc');
-  const vd = selD.value;
   selD.innerHTML = `<option value="">— sem disciplina —</option>` + S.disciplinas.filter(d => (d.situacao||'cursando')==='cursando')
     .map(d => `<option value="${d.id}">${esc(d.nome)}</option>`).join('');
-  selD.value = vd || '';
-  const selT = $('#pomoTask'), vt = selT.value;
-  selT.innerHTML = `<option value="">— nenhuma —</option>` + proximas(30).slice(0,40)
-    .map(x => `<option value="${x.t.id}">${esc(x.t.titulo)}</option>`).join('');
-  selT.value = vt || '';
+  selD.value = Pomo.discId || '';
+  if (selD.value !== (Pomo.discId||'')) Pomo.discId = '';
+  const selT = $('#pomoTask');
+  const vistas = new Set();
+  selT.innerHTML = `<option value="">— nenhuma —</option>` + proximas(30).filter(x => {
+      if (vistas.has(x.t.id)) return false; vistas.add(x.t.id); return true;
+    }).slice(0,40).map(x => `<option value="${x.t.id}">${esc(x.t.titulo)}</option>`).join('');
+  selT.value = Pomo.tarefaId || '';
+  if (selT.value !== (Pomo.tarefaId||'')) Pomo.tarefaId = '';
 
   chartHoras();
 
@@ -2277,15 +2457,24 @@ function catArquivo(a){
 /* ------------------------------ AJUSTES ------------------------------ */
 VIEWS.config = function(){
   const c = S.config, p = S.perfil;
-  const permitido = ('Notification' in window) && Notification.permission === 'granted';
+  const temNotif = ('Notification' in window);
+  const permitido = temNotif && Notification.permission === 'granted';
+  const explicacao = IS_TOUCH
+    ? 'No celular os avisos aparecem enquanto o painel estiver aberto. Para alertas garantidos com o app fechado, use “Enviar agenda para o Calendário” no cartão abaixo.'
+    : 'Os avisos aparecem enquanto esta página estiver aberta (pode ficar em segundo plano). Deixe uma aba fixada para não perder nada.';
   $('#configContainer').innerHTML = `
     <div class="card">
       <div class="card-head"><h3><svg class="icon icon-sm" style="vertical-align:-3px"><use href="#i-bell"/></svg> Alertas e lembretes</h3></div>
       <div class="card-pad" style="display:flex;flex-direction:column;gap:14px">
         <div class="banner ${permitido?'info':''}"><svg class="icon"><use href="#i-info"/></svg>
-          <div><b>${permitido?'Alertas do navegador ativos':'Alertas do navegador desativados'}</b>
-          Os avisos aparecem enquanto esta página estiver aberta (pode ficar em segundo plano). Deixe uma aba fixada para não perder nada.</div></div>
-        ${!permitido?`<button class="btn btn-primary" id="cfgAskNotif"><svg class="icon icon-sm"><use href="#i-bell"/></svg>Permitir notificações</button>`:''}
+          <div><b>${permitido ? 'Alertas do sistema ativos'
+            : (!temNotif && IS_IOS && !IS_STANDALONE) ? 'Instale na tela de início para liberar as notificações'
+            : !temNotif ? 'Este navegador não oferece notificações do sistema'
+            : 'Alertas do sistema desativados'}</b>
+          ${(!temNotif && IS_IOS && !IS_STANDALONE)
+            ? 'O iPhone só permite notificações em apps adicionados à tela de início (iOS 16.4 ou mais novo). Os avisos dentro do painel continuam funcionando.'
+            : explicacao}</div></div>
+        ${(!permitido && temNotif)?`<button class="btn btn-primary" id="cfgAskNotif" style="justify-content:center"><svg class="icon icon-sm"><use href="#i-bell"/></svg>Permitir notificações</button>`:''}
         <label class="check-row"><input type="checkbox" id="cfgSom" ${c.som?'checked':''}> Tocar som nos alertas</label>
         <label class="check-row"><input type="checkbox" id="cfgResumo" ${c.resumoDiario?'checked':''}> Resumo do dia ao abrir</label>
         <div class="row">
@@ -2344,9 +2533,28 @@ VIEWS.config = function(){
     </div>
 
     <div class="card">
+      <div class="card-head"><h3><svg class="icon icon-sm" style="vertical-align:-3px"><use href="#i-cap"/></svg> No celular ${IS_IOS?'(iPhone)':''}</h3></div>
+      <div class="card-pad" style="display:flex;flex-direction:column;gap:11px">
+        <div class="banner ${IS_STANDALONE?'info':''}"><svg class="icon"><use href="#i-${IS_STANDALONE?'check':'cap'}"/></svg>
+          <div><b>${IS_STANDALONE ? 'Instalado como app 🎉' : 'Adicione à tela de início'}</b>
+          ${IS_STANDALONE ? 'Você está usando o painel em tela cheia, com dados guardados neste aparelho.'
+            : (IS_IOS ? 'No Safari: Compartilhar ⤴︎ › “Adicionar à Tela de Início”. Vira um app com ícone e funciona offline.'
+                      : 'Menu do navegador › “Instalar aplicativo”. Abre em janela própria e funciona offline.')}</div></div>
+        ${!IS_STANDALONE?`<button class="btn btn-primary" id="cfgInstalar" style="justify-content:center"><svg class="icon icon-sm"><use href="#i-cap"/></svg>Ver como instalar</button>`:''}
+        <div class="banner"><svg class="icon"><use href="#i-bell"/></svg>
+          <div><b>Alertas que tocam com o app fechado</b>
+          O celular pausa páginas em segundo plano, então o jeito garantido é jogar as provas e entregas no
+          calendário do aparelho — cada uma leva os lembretes que você escolheu.</div></div>
+        <button class="btn" id="cfgIcs2" style="justify-content:center"><svg class="icon icon-sm"><use href="#i-cal"/></svg>Enviar agenda para o Calendário</button>
+        <button class="btn" id="cfgAjuda" style="justify-content:center"><svg class="icon icon-sm"><use href="#i-info"/></svg>Como usar o painel</button>
+        <p style="font-size:11.5px;color:var(--muted)">Dica: em cada tarefa, o menu <b>⋮</b> tem “Enviar ao Calendário” para eventos individuais.</p>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-head"><h3><svg class="icon icon-sm" style="vertical-align:-3px"><use href="#i-info"/></svg> Atalhos e dicas</h3></div>
       <div class="card-pad">
-        <table class="data"><tbody>
+        <table class="data" ${IS_TOUCH?'style="display:none"':''}><tbody>
           <tr><td><span class="kbd">Ctrl</span> + <span class="kbd">K</span></td><td>Ir para a adição rápida</td></tr>
           <tr><td><span class="kbd">N</span></td><td>Nova tarefa completa</td></tr>
           <tr><td><span class="kbd">/</span></td><td>Buscar tarefas</td></tr>
@@ -2374,6 +2582,9 @@ VIEWS.config = function(){
   on('cfgDomingo','change', e => { c.semanaDomingo = e.target.checked; save(); });
   on('cfgMaisPerfil','click', editarPerfil);
   on('cfgExport','click', exportarBackup);
+  on('cfgInstalar','click', comoInstalar);
+  on('cfgIcs2','click', exportarICS);
+  on('cfgAjuda','click', ajuda);
   on('cfgImport','click', importarBackup);
   on('cfgIcs','click', exportarICS);
   on('cfgCsv','click', exportarCSV);
@@ -2452,16 +2663,30 @@ async function abrirArquivo(id){
     $('#mvDown').onclick = () => baixarArquivo(id);
     return;
   }
+  if (IS_TOUCH){
+    const ov = openModal(`
+      <div class="modal-head"><span class="avatar"><svg class="icon icon-sm"><use href="#i-note"/></svg></span>
+        <h3 style="font-size:14.5px">${esc(a.nome)}</h3>
+        <button class="btn btn-icon btn-ghost" data-close><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--ink-2)">${bytes(a.tamanho||0)} · ${cat.toUpperCase()}</p>
+        <button class="btn btn-primary" id="afAbrir" style="justify-content:center"><svg class="icon icon-sm"><use href="#i-ext"/></svg>Abrir para ler</button>
+        <button class="btn" id="afShare" style="justify-content:center"><svg class="icon icon-sm"><use href="#i-up"/></svg>Compartilhar ou salvar em Arquivos</button>
+        <p style="font-size:11.5px;color:var(--muted)">No iPhone, “Compartilhar” também permite abrir o PDF em outro app (Arquivos, Livros, WhatsApp…).</p>
+      </div>`, {size:'narrow'});
+    $('#afAbrir', ov).onclick = () => { const w = window.open(u, '_blank'); if (!w) baixarArquivo(id); closeModal(ov); };
+    $('#afShare', ov).onclick = () => { closeModal(ov); baixarArquivo(id); };
+    return;
+  }
   const w = window.open(u, '_blank');
   if (!w) baixarArquivo(id);
 }
 async function baixarArquivo(id){
-  const u = await fileURL(id);
   const a = S.arquivos.find(x => x.id === id);
-  if (!u) return;
-  const link = document.createElement('a');
-  link.href = u; link.download = (a && a.nome) || 'arquivo';
-  document.body.appendChild(link); link.click(); link.remove();
+  const blob = await Store.getBlob(id);
+  if (!blob){ toast('Arquivo indisponível', 'O conteúdo não está neste dispositivo.', 'alert'); return; }
+  const r = await baixar((a && a.nome) || 'arquivo', blob, blob.type);
+  if (r === 'baixado' && IS_TOUCH) toast('Arquivo salvo', 'Procure em Downloads / Arquivos.', '', 3500);
 }
 async function carregarThumbs(root){
   for (const img of $$('[data-thumb]', root)){
@@ -2582,9 +2807,13 @@ function openTask(id, dateKey, preset){
         <div class="sec-title">Anexos</div>
         <div class="drop" id="tkDrop" style="margin-top:8px">
           <svg class="icon" style="stroke:currentColor"><use href="#i-clip"/></svg>
-          <div style="margin-top:4px">Arraste arquivos aqui ou <b>clique para escolher</b></div>
-          <div style="font-size:11px;margin-top:2px">PDF, imagens, Word, Excel… ficam guardados neste navegador</div>
+          <div style="margin-top:4px">${IS_TOUCH ? '<b>Toque para escolher</b> arquivos ou fotos' : 'Arraste arquivos aqui ou <b>clique para escolher</b>'}</div>
+          <div style="font-size:11px;margin-top:2px">PDF, imagens, Word, Excel… ficam guardados neste aparelho</div>
         </div>
+        ${IS_TOUCH ? `<div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" id="tkFoto" type="button" style="flex:1;justify-content:center"><svg class="icon icon-sm"><use href="#i-img"/></svg>Tirar foto</button>
+          <button class="btn" id="tkEscolher" type="button" style="flex:1;justify-content:center"><svg class="icon icon-sm"><use href="#i-folder"/></svg>Arquivos</button>
+        </div>` : ''}
         <div id="tkAnexos" style="margin-top:9px"></div>
       </div>
     </div>
@@ -2664,6 +2893,14 @@ function openTask(id, dateKey, preset){
     inp.onchange = () => pegar(inp.files);
     inp.click();
   };
+  const bFoto = q('#tkFoto'), bEsc = q('#tkEscolher');
+  if (bFoto) bFoto.onclick = () => {
+    const inp = $('#cameraFile');
+    inp.value = '';
+    inp.onchange = () => pegar(inp.files);
+    inp.click();
+  };
+  if (bEsc) bEsc.onclick = () => drop.click();
   ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => { if (e.dataTransfer && e.dataTransfer.files.length) pegar(e.dataTransfer.files); });
@@ -2701,7 +2938,7 @@ function openTask(id, dateKey, preset){
     commit();
     toast(existente ? 'Tarefa atualizada' : 'Tarefa criada', draft.data ? relDia(draft.data) + (draft.hora ? ' às ' + draft.hora : '') : '', 'ok', 3000);
   };
-  q('#tkTitulo').focus();
+  if (!IS_TOUCH) q('#tkTitulo').focus();
 }
 
 /* =========================================================================
@@ -2947,6 +3184,14 @@ function bindTip(root){
       tip.style.top  = Math.max(8, e.clientY - tip.offsetHeight - 10) + 'px';
     });
     el.addEventListener('mouseleave', () => tip.classList.remove('on'));
+    el.addEventListener('touchstart', e => {
+      const t0 = e.touches[0];
+      tip.innerHTML = el.dataset.tip;
+      tip.classList.add('on');
+      tip.style.left = Math.min(t0.clientX + 12, innerWidth - tip.offsetWidth - 10) + 'px';
+      tip.style.top  = Math.max(8, t0.clientY - tip.offsetHeight - 14) + 'px';
+      clearTimeout(tip._t); tip._t = setTimeout(() => tip.classList.remove('on'), 2600);
+    }, {passive:true});
   });
 }
 /** gráfico de barras verticais, série única */
@@ -3119,10 +3364,17 @@ function chartHoras(){
    ALERTAS E NOTIFICAÇÕES
    ========================================================================= */
 let audioCtx = null;
+function liberarAudio(){
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch(e){}
+}
 function beep(freq, dur){
   if (!S.config.som) return;
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.type = 'sine'; o.frequency.value = freq || 660;
     g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
@@ -3222,12 +3474,13 @@ function resumoDiario(){
    ========================================================================= */
 const Pomo = {
   modo:'foco', dur:{foco:25, pausa:5, longa:15}, restante:25*60, rodando:false,
-  ciclos:0, timer:null, inicioTs:null,
+  ciclos:0, timer:null, fimEm:null, discId:'', tarefaId:'',
   total(){ return this.dur[this.modo]*60; },
   set(modo){
-    this.parar();
-    this.modo = modo; this.restante = this.total(); this.pintar();
+    this.pararInterno();
+    this.modo = modo; this.restante = this.total(); this.fimEm = null;
     $$('#pomoModes button').forEach(b => b.classList.toggle('active', b.dataset.m === modo));
+    this.pintar(); this.salvar();
   },
   pintar(){
     const t = $('#pomoTime'); if (!t) return;
@@ -3241,37 +3494,73 @@ const Pomo = {
     arc.setAttribute('stroke', this.modo === 'foco' ? 'var(--brand)' : this.modo === 'pausa' ? 'var(--good)' : 'var(--s7)');
     $('#pomoStartTxt').textContent = this.rodando ? 'Pausar' : (this.restante < this.total() ? 'Continuar' : 'Iniciar');
     $('#pomoStart').querySelector('use').setAttribute('href', this.rodando ? '#i-pause' : '#i-play');
-    $('#pomoDots').innerHTML = Array.from({length:4}, (_,i) => `<i class="${i < this.ciclos%4 || (this.ciclos%4===0&&this.ciclos>0&&i<4)?'on':''}"></i>`).join('');
+    $('#pomoDots').innerHTML = Array.from({length:4}, (_,i) => `<i class="${i < (this.ciclos % 4 || (this.ciclos && this.ciclos % 4 === 0 ? 4 : 0)) ? 'on' : ''}"></i>`).join('');
     document.title = this.rodando ? `${pad2(m)}:${pad2(s)} · ${this.modo==='foco'?'Foco':'Pausa'}` : 'Painel Acadêmico — Controle da Faculdade';
   },
   alternar(){ this.rodando ? this.parar() : this.iniciar(); },
   iniciar(){
     if (this.rodando) return;
     this.rodando = true;
-    this.inicioTs = Date.now();
-    this.timer = setInterval(() => {
-      this.restante--;
-      if (this.restante <= 0){ this.concluir(); return; }
-      this.pintar();
-    }, 1000);
-    this.pintar();
-    beep(880, .12);
+    this.fimEm = Date.now() + this.restante*1000;   /* hora absoluta: sobrevive ao app dormir */
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.tick(), 500);
+    liberarAudio(); beep(880, .12);
+    this.pintar(); this.salvar();
   },
-  parar(){ clearInterval(this.timer); this.timer = null; this.rodando = false; this.pintar(); },
-  reiniciar(){ this.parar(); this.restante = this.total(); this.pintar(); },
-  concluir(){
-    const min = this.dur[this.modo];
-    this.parar();
-    if (this.modo === 'foco'){
+  tick(){
+    if (!this.rodando || !this.fimEm) return;
+    const r = Math.round((this.fimEm - Date.now())/1000);
+    if (r <= 0){ this.restante = 0; this.concluir(); return; }
+    this.restante = r; this.pintar();
+  },
+  pararInterno(){
+    if (this.rodando && this.fimEm) this.restante = Math.max(0, Math.round((this.fimEm - Date.now())/1000));
+    clearInterval(this.timer); this.timer = null; this.rodando = false; this.fimEm = null;
+  },
+  parar(){ this.pararInterno(); this.pintar(); this.salvar(); },
+  reiniciar(){ this.pararInterno(); this.restante = this.total(); this.pintar(); this.salvar(); },
+  concluir(silencioso){
+    const min = this.dur[this.modo], eraFoco = this.modo === 'foco';
+    this.pararInterno();
+    if (eraFoco){
       this.ciclos++;
-      registrarSessao({disciplinaId: $('#pomoDisc').value, tarefaId: $('#pomoTask').value, minutos: min, tipo:'foco'});
-      notificar('Ciclo concluído!', `${min} minutos de foco registrados. Hora de uma pausa.`, 'pomo');
-      this.set(this.ciclos % 4 === 0 ? 'longa' : 'pausa');
+      registrarSessao({disciplinaId: this.discId, tarefaId: this.tarefaId, minutos: min, tipo:'foco'});
+      if (silencioso) toast('Ciclo de foco concluído', `${min} min registrados enquanto o app estava fechado.`, 'ok', 6000);
+      else notificar('Ciclo concluído!', `${min} minutos de foco registrados. Hora de uma pausa.`, 'pomo');
+      this.modo = this.ciclos % 4 === 0 ? 'longa' : 'pausa';
     } else {
-      notificar('Pausa encerrada', 'Bora para mais um ciclo de foco?', 'pomo');
-      this.set('foco');
+      if (!silencioso) notificar('Pausa encerrada', 'Bora para mais um ciclo de foco?', 'pomo');
+      this.modo = 'foco';
     }
+    this.restante = this.total();
+    $$('#pomoModes button').forEach(b => b.classList.toggle('active', b.dataset.m === this.modo));
+    this.pintar(); this.salvar();
     renderAll();
+  },
+  salvar(){
+    S.config.pomo = {modo:this.modo, restante:this.restante, rodando:this.rodando, fimEm:this.fimEm,
+                     ciclos:this.ciclos, discId:this.discId, tarefaId:this.tarefaId};
+    save();
+  },
+  restaurar(){
+    const g = S.config.pomo;
+    if (!g) { this.pintar(); return; }
+    this.modo = g.modo || 'foco'; this.ciclos = Number(g.ciclos) || 0;
+    this.discId = g.discId || ''; this.tarefaId = g.tarefaId || '';
+    $$('#pomoModes button').forEach(b => b.classList.toggle('active', b.dataset.m === this.modo));
+    if (g.rodando && g.fimEm){
+      if (g.fimEm > Date.now()){                       /* ainda rodando: continua de onde estava */
+        this.restante = Math.round((g.fimEm - Date.now())/1000);
+        this.rodando = false; this.fimEm = null;
+        this.iniciar();
+        return;
+      }
+      this.restante = 0; this.rodando = true; this.fimEm = g.fimEm;
+      this.concluir(true);                             /* terminou com o app fechado */
+      return;
+    }
+    this.restante = Number(g.restante) || this.total();
+    this.pintar();
   }
 };
 function registrarSessao(o){
@@ -3378,14 +3667,6 @@ function adicaoRapida(txt){
 /* =========================================================================
    BACKUP / EXPORTAÇÕES
    ========================================================================= */
-function baixar(nome, conteudo, mime){
-  const blob = conteudo instanceof Blob ? conteudo : new Blob([conteudo], {type: mime || 'text/plain;charset=utf-8'});
-  const u = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = u; a.download = nome;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(u), 4000);
-}
 async function exportarBackup(){
   const t = toast('Preparando backup…', 'Reunindo dados e anexos.', '', 30000);
   const pacote = {app:'painel-academico', versao:1, exportadoEm:new Date().toISOString(), estado:S, blobs:{}};
@@ -3397,9 +3678,9 @@ async function exportarBackup(){
   }
   S.config.ultimoBackup = new Date().toISOString();
   save();
-  baixar(`painel-academico-${todayKey()}.json`, JSON.stringify(pacote), 'application/json');
   t.remove();
-  toast('Backup baixado', 'Guarde o arquivo na nuvem ou em um pendrive.', 'ok');
+  const r = await baixar(`painel-academico-${todayKey()}.json`, JSON.stringify(pacote), 'application/json');
+  if (r !== 'cancelado') toast('Backup pronto', IS_IOS ? 'Salve em “Arquivos” ou envie para o iCloud/WhatsApp.' : 'Guarde o arquivo na nuvem ou em um pendrive.', 'ok', 6000);
   renderAll();
 }
 function importarBackup(){
@@ -3437,7 +3718,7 @@ function importarBackup(){
   inp.click();
 }
 function icsEscape(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
-function exportarICS(){
+async function exportarICS(){
   const pad = n => pad2(n);
   const fmt = (k, h) => { const d = dtOf(k, h || '09:00'); return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`; };
   const linhas = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Painel Academico//PT-BR','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Faculdade'];
@@ -3474,10 +3755,11 @@ function exportarICS(){
     });
   });
   linhas.push('END:VCALENDAR');
-  baixar(`agenda-faculdade-${todayKey()}.ics`, linhas.join('\r\n'), 'text/calendar;charset=utf-8');
-  toast('Agenda exportada', 'Importe o .ics no Google Agenda, Outlook ou Apple Calendar.', 'ok', 6000);
+  await baixar(`agenda-faculdade-${todayKey()}.ics`, linhas.join('\r\n'), 'text/calendar;charset=utf-8');
+  toast('Agenda pronta', IS_IOS ? 'Escolha “Calendário” na folha de compartilhamento para adicionar tudo ao iPhone.'
+    : 'Importe o .ics no Google Agenda, Outlook ou Apple Calendar.', 'ok', 7000);
 }
-function exportarCSV(){
+async function exportarCSV(){
   const cab = ['Título','Tipo','Disciplina','Data','Hora','Prioridade','Status','Local','Descrição','Observações','Checklist','Anexos'];
   const linhas = S.tarefas.map(t => {
     const d = disc(t.disciplinaId);
@@ -3488,8 +3770,74 @@ function exportarCSV(){
       (t.anexos||[]).map(id => { const a = S.arquivos.find(x => x.id === id); return a?a.nome:''; }).filter(Boolean).join(' | ')];
   });
   const csv = [cab, ...linhas].map(l => l.map(c => `"${String(c==null?'':c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
-  baixar(`tarefas-${todayKey()}.csv`, '\ufeff'+csv, 'text/csv;charset=utf-8');
+  await baixar(`tarefas-${todayKey()}.csv`, '\ufeff'+csv, 'text/csv;charset=utf-8');
   toast('CSV exportado', 'Abra no Excel ou Google Planilhas.', 'ok');
+}
+
+/** gera um .ics de uma única tarefa — no iPhone isso vira alarme de verdade no Calendário */
+async function enviarAoCalendario(t, dateKey){
+  const k = dateKey || t.data;
+  if (!k){ toast('Sem data', 'Defina uma data na tarefa antes de enviar ao calendário.', 'warn'); return; }
+  const fmt = (kk, h) => { const d = dtOf(kk, h || '09:00'); return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}T${pad2(d.getHours())}${pad2(d.getMinutes())}00`; };
+  const d = disc(t.disciplinaId);
+  const desc = [t.descricao, d ? 'Disciplina: ' + d.nome : '',
+    (t.checklist||[]).map(c => (c.done?'[x] ':'[ ] ') + c.txt).join('\n'),
+    (t.observacoes||[]).map(o => '• ' + o.texto).join('\n')].filter(Boolean).join('\n\n');
+  const rrule = {diario:'FREQ=DAILY', semanal:'FREQ=WEEKLY', quinzenal:'FREQ=WEEKLY;INTERVAL=2',
+                 mensal:'FREQ=MONTHLY', util:'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR'}[(t.repetir||{}).tipo] || null;
+  const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Painel Academico//PT-BR','CALSCALE:GREGORIAN','BEGIN:VEVENT',
+    `UID:${t.id}-${k}@painel-academico`,
+    `DTSTART:${fmt(k, t.hora || '09:00')}`,
+    `DTEND:${fmt(k, t.horaFim || t.hora || '10:00')}`,
+    `SUMMARY:${icsEscape(((TIPOS[t.tipo]||TIPOS.outro).lbl) + ': ' + t.titulo)}`,
+    `DESCRIPTION:${icsEscape(desc)}`,
+    `LOCATION:${icsEscape(t.local||'')}`,
+    `PRIORITY:${({urgente:1, alta:3, media:5, baixa:7})[t.prioridade]||5}`];
+  if (rrule) L.push('RRULE:' + rrule + (t.repetir.ate ? `;UNTIL=${fmt(t.repetir.ate, '23:59')}` : ''));
+  ((t.lembretes && t.lembretes.ativo) ? (t.lembretes.antes||[]) : []).forEach(off => {
+    L.push('BEGIN:VALARM','ACTION:DISPLAY',`DESCRIPTION:${icsEscape(t.titulo)}`,`TRIGGER:-PT${off}M`,'END:VALARM');
+  });
+  L.push('END:VEVENT','END:VCALENDAR');
+  const nome = (slug(t.titulo).slice(0,28) || 'tarefa') + '.ics';
+  const r = await baixar(nome, L.join('\r\n'), 'text/calendar;charset=utf-8');
+  if (r !== 'cancelado') toast('Evento gerado', IS_IOS
+    ? 'Na folha que abriu, escolha “Calendário” para criar o alarme no iPhone.'
+    : 'Abra o arquivo .ics para adicionar ao seu calendário.', 'ok', 7000);
+}
+
+/** instruções de instalação na tela de início */
+function comoInstalar(){
+  const passos = IS_IOS ? [
+    'Abra este painel no <b>Safari</b> (não funciona pelo Chrome no iPhone).',
+    'Toque no botão <b>Compartilhar</b> ⤴︎ na barra de baixo.',
+    'Deslize e escolha <b>“Adicionar à Tela de Início”</b>.',
+    'Confirme em <b>Adicionar</b>. Pronto: vira um app com ícone próprio.'
+  ] : [
+    'Abra o menu do navegador (⋮).',
+    'Escolha <b>Instalar aplicativo</b> ou <b>Adicionar à tela inicial</b>.',
+    'Confirme. O painel abre em janela própria, como um app.'
+  ];
+  openModal(`
+    <div class="modal-head"><span class="avatar"><svg class="icon icon-sm"><use href="#i-cap"/></svg></span>
+      <h3>Instalar no ${IS_IOS ? 'iPhone' : 'celular'}</h3>
+      <button class="btn btn-icon btn-ghost" data-close><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <ol style="font-size:13.5px;color:var(--ink-2);margin:0;padding-left:20px;line-height:1.9">
+        ${passos.map(s => `<li>${s}</li>`).join('')}</ol>
+      <div class="banner info"><svg class="icon"><use href="#i-info"/></svg>
+        <div><b>Por que instalar</b>Abre em tela cheia, funciona sem internet, guarda seus dados de forma
+        mais segura e ${IS_IOS ? 'libera as notificações do iOS (iPhone com iOS 16.4 ou mais novo)' : 'permite notificações'}.</div></div>
+      <div class="banner"><svg class="icon"><use href="#i-bell"/></svg>
+        <div><b>Alertas garantidos, mesmo com o app fechado</b>
+        Toque em <b>Ajustes › Enviar agenda para o Calendário</b>: as provas e entregas viram eventos com alarme
+        no calendário do ${IS_IOS ? 'iPhone' : 'celular'} — esses avisos tocam mesmo se você não abrir o painel.</div></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="instNunca">Não mostrar mais</button>
+      <button class="btn btn-primary" data-close>Entendi</button>
+    </div>`, {size:'narrow'});
+  const b = $('#instNunca');
+  if (b) b.onclick = () => { S.config.ocultarInstalar = true; commit(); $$('#modalRoot .overlay').forEach(closeModal); };
 }
 
 /* =========================================================================
@@ -3565,6 +3913,10 @@ function ajuda(){
         <p style="font-size:13px;color:var(--ink-2);margin-top:9px">Cada tarefa pode ter vários lembretes (1 semana antes, 1 dia antes, 1 hora antes…) e ainda
         <b>insistir</b> numa frequência escolhida até você concluir. Os avisos chegam como notificação do sistema e como aviso dentro da página —
         para isso, esta aba precisa estar aberta (pode ficar em segundo plano). Dica: fixe a aba no navegador.</p></div>
+      <div><div class="sec-title">No celular</div>
+        <p style="font-size:13px;color:var(--ink-2);margin-top:9px">Adicione o painel à tela de início (no iPhone: <b>Compartilhar ⤴︎ › Adicionar à Tela de Início</b>)
+        para abrir em tela cheia e funcionar sem internet. Como o celular pausa o que está em segundo plano, o jeito garantido de ser avisado
+        é mandar as provas e entregas para o calendário do aparelho: <b>Ajustes › Enviar agenda para o Calendário</b>, ou pelo menu <b>⋮</b> de cada tarefa.</p></div>
       <div><div class="sec-title">Onde ficam meus dados</div>
         <p style="font-size:13px;color:var(--ink-2);margin-top:9px">Tudo é salvo <b>neste navegador</b> — nada vai para a internet. Por isso, use
         <b>Ajustes › Baixar backup</b> de vez em quando; o arquivo .json guarda inclusive os anexos e pode ser restaurado em outro computador.</p></div>
@@ -3622,6 +3974,18 @@ async function init(){
   }
   applyTheme();
   updateStorageLabel();
+
+  /* app instalável: guarda o painel no aparelho para abrir sem internet */
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    try { navigator.serviceWorker.register('sw.js'); } catch(e){}
+  }
+  /* pede ao navegador para não apagar os dados (iOS limpa sites pouco usados) */
+  try {
+    if (navigator.storage && navigator.storage.persist){
+      const jaTem = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+      if (!jaTem) navigator.storage.persist().catch(() => {});
+    }
+  } catch(e){}
 
   /* navegação */
   $$('#nav .nav-item').forEach(b => b.onclick = () => go(b.dataset.view));
@@ -3684,7 +4048,9 @@ async function init(){
   $('#pomoReset').onclick = () => Pomo.reiniciar();
   $('#pomoLog').onclick = registroManual;
   $$('#pomoModes button').forEach(b => b.onclick = () => Pomo.set(b.dataset.m));
-  Pomo.pintar();
+  $('#pomoDisc').onchange = e => { Pomo.discId = e.target.value; Pomo.salvar(); };
+  $('#pomoTask').onchange = e => { Pomo.tarefaId = e.target.value; Pomo.salvar(); };
+  Pomo.restaurar();
 
   /* gráficos: alternar tabela */
   document.addEventListener('click', e => {
@@ -3717,13 +4083,35 @@ async function init(){
   tickLembretes();
   setInterval(tickLembretes, 30000);
   setInterval(() => { if (UI.view === 'dashboard') updateBadges(); }, 120000);
-  window.addEventListener('beforeunload', e => { if (Pomo.rodando){ e.preventDefault(); e.returnValue = ''; } });
+  /* o iOS suspende o JS quando o app sai de foco: ao voltar, recalcula na hora */
+  const retomar = () => {
+    if (document.visibilityState === 'hidden') return;
+    if (Pomo.rodando) Pomo.tick();
+    tickLembretes();
+    renderAll();
+  };
+  document.addEventListener('visibilitychange', retomar);
+  window.addEventListener('focus', retomar);
+  window.addEventListener('pageshow', retomar);
+  /* som só pode ser liberado a partir de um toque do usuário (regra do iOS) */
+  const liberar = () => { liberarAudio(); document.removeEventListener('touchend', liberar); document.removeEventListener('click', liberar); };
+  document.addEventListener('touchend', liberar, {once:true, passive:true});
+  document.addEventListener('click', liberar, {once:true});
+  if (!IS_TOUCH) window.addEventListener('beforeunload', e => { if (Pomo.rodando){ e.preventDefault(); e.returnValue = ''; } });
   if (window.matchMedia){
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     if (mq.addEventListener) mq.addEventListener('change', () => { if ((S.config.tema||'auto') === 'auto'){ applyTheme(); renderAll(); } });
   }
 
-  go('dashboard');
+  /* atalhos do ícone instalado: ?tela=calendario · ?acao=nova */
+  let telaInicial = 'dashboard';
+  try {
+    const par = new URLSearchParams(location.search);
+    const t = par.get('tela');
+    if (t && $('#v-' + t)) telaInicial = t;
+    if (par.get('acao') === 'nova') setTimeout(() => openTask(null, todayKey()), 400);
+  } catch(e){}
+  go(telaInicial);
 
   /* primeira visita */
   if (!S.tarefas.length && !S.disciplinas.length && !S.perfil.curso){
