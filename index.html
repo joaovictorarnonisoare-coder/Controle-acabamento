@@ -1437,14 +1437,6 @@ async function boot(){
   try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   save();
 }
-
-/* ---- Salvar quando app fecha ou vai pro background ---- */
-document.addEventListener("visibilitychange", () => { if(document.hidden) save(); });
-window.addEventListener("pagehide", () => save());
-window.addEventListener("beforeunload", () => save());
-/* Salvar periodicamente pra garantir persistência */
-setInterval(save, 5000);
-
 boot();
 
 if("serviceWorker" in navigator && location.protocol.indexOf("http") === 0){
