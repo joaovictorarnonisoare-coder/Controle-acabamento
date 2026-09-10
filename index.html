@@ -1299,15 +1299,35 @@ $("#btnMenu").onclick = async () => {
   }catch(err){}
 };
 
-function download(name, blob){
+/* Salvar arquivo. No navegador normal é um link de download; dentro do
+   visualizador de Artifact o download direto é bloqueado, então usamos a
+   capacidade "downloads", que pede confirmação ao usuário. */
+const SAVER = (window.claude && typeof window.claude.use === "function")
+  ? window.claude.use("downloads").catch(() => null)
+  : null;
+const FRAMED = !!SAVER;
+
+async function saveFile(name, blob){
+  if(FRAMED){
+    const d = await SAVER;
+    if(!d) return "bloqueado";
+    try{ await d.save({filename:name, data:blob}); return "ok"; }
+    catch(err){ return (err && err.code === "declined") ? "cancelado" : "falhou"; }
+  }
   try{
     const u = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = u; a.download = name;
     document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(u); a.remove(); }, 2000);
-    return true;
-  }catch(e){ return false; }
+    return "ok";
+  }catch(e){ return "falhou"; }
+}
+function saveMsg(r, ok){
+  if(r === "ok") return ok;
+  if(r === "cancelado") return "Download cancelado.";
+  if(r === "bloqueado") return "Esta prévia não deixa baixar arquivos — use o app instalado no iPhone.";
+  return "Não consegui gerar o arquivo.";
 }
 function stamp(){
   const d = new Date();
@@ -1322,8 +1342,8 @@ $("#miExport").onclick = async () => {
   const fulls  = (await idbAll("fulls")).filter(r => used.has(r.id));
   const payload = {app:"ronda-acabamento", v:1, exportedAt:new Date().toISOString(), state:S, thumbs:thumbs, fulls:fulls};
   const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
-  const ok = download("ronda-acabamento-" + stamp() + ".json", blob);
-  toast(ok ? "Backup gerado (" + fmtBytes(blob.size) + "). Salve em Arquivos ou iCloud." : "Este visualizador bloqueia downloads.");
+  const r = await saveFile("ronda-acabamento-" + stamp() + ".json", blob);
+  toast(saveMsg(r, "Backup de " + fmtBytes(blob.size) + " pronto. Salve em Arquivos ou iCloud."));
 };
 
 $("#miImport").onclick = () => $("#inRestore").click();
@@ -1348,7 +1368,7 @@ $("#inRestore").addEventListener("change", async e => {
   }
 });
 
-$("#miCsv").onclick = () => {
+$("#miCsv").onclick = async () => {
   const rows = [["Categoria","Situação","Prioridade","Torre","Bloco","Pavimento","Apto/Local","Observação","Registrado","Fotos"]];
   S.items.forEach(d => rows.push([
     catName(d.cat),
@@ -1361,8 +1381,8 @@ $("#miCsv").onclick = () => {
     String(d.photos.length)
   ]));
   const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(";")).join("\r\n");
-  const ok = download("ronda-acabamento-" + stamp() + ".csv", new Blob(["﻿" + csv], {type:"text/csv;charset=utf-8"}));
-  toast(ok ? "Planilha gerada." : "Este visualizador bloqueia downloads.");
+  const r = await saveFile("ronda-acabamento-" + stamp() + ".csv", new Blob(["﻿" + csv], {type:"text/csv;charset=utf-8"}));
+  toast(saveMsg(r, "Planilha gerada."));
 };
 
 $("#miWipe").onclick = async () => {
